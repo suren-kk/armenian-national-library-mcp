@@ -135,13 +135,10 @@ export function releaseMetadataIssues({
     ? new Set(packageManifest.files)
     : new Set<unknown>();
   for (const requiredFile of [
-    "dist",
-    "config",
-    "docs",
-    "evals",
+    "dist/**/*.js",
+    "config/endpoint-matrix.yaml",
     "README.md",
     "CHANGELOG.md",
-    "CONTRIBUTING.md",
     "DATA_AND_CONTENT_RIGHTS.md",
     "PRIVACY.md",
     "SECURITY.md",

@@ -29,6 +29,7 @@ import { paginationFrom } from "./pagination.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const TEXT_DISCOVERY_MAX_RECORDS = 500;
 
 export interface BundleWithFiles {
   uuid: string;
@@ -36,6 +37,14 @@ export interface BundleWithFiles {
   classification: BundleClassification;
   files: ResolvedBitstream[];
   filesTruncated: boolean;
+  filesPagination: Pagination | null;
+}
+
+export interface ItemFilesPageOptions {
+  bundlePage: number;
+  bundlePageSize: number;
+  bitstreamPage: number;
+  bitstreamPageSize: number;
 }
 
 export interface ItemTextOptions {
@@ -141,7 +150,7 @@ function asBundle(
     throw NlaError.invalidResponse("Malformed DSpace bundle record");
   }
   assertUuid(object.uuid, "Bundle UUID");
-  return object as DspaceObject & { uuid: string; name: string };
+  return { ...object, uuid: object.uuid, name: object.name };
 }
 
 function asFormat(value: unknown): BitstreamFormat {
@@ -153,52 +162,81 @@ function asAccessStatus(value: unknown): AccessStatus {
 }
 
 export class NlaContentResolver {
+  private readonly decodedTextCache = new Map<
+    string,
+    { text: string; estimatedBytes: number }
+  >();
+  private decodedTextCacheBytes = 0;
+
   constructor(private readonly client: NlaClient) {}
 
   async listItemFiles(
     itemUuid: string,
+    options: ItemFilesPageOptions = {
+      bundlePage: 0,
+      bundlePageSize: this.client.config.maxPageSize,
+      bitstreamPage: 0,
+      bitstreamPageSize: this.client.config.maxPageSize,
+    },
     signal?: AbortSignal,
   ): Promise<Envelope<BundleWithFiles[]>> {
     assertUuid(itemUuid, "Item UUID");
-    const response = await this.client.getJson<unknown>(
-      `core/items/${itemUuid}/bundles`,
-      {
-        query: { page: 0, size: this.client.config.maxPageSize },
-        signal,
-      },
+    const bundlePageSize = Math.min(
+      options.bundlePageSize,
+      this.client.config.maxPageSize,
     );
-    const document = requireHalDocument(response.data);
-    validatedLinks(document, this.client.urlPolicy);
-    const bundlePagination = paginationFrom(document);
-    const bundles = getEmbedded<unknown>(document, "bundles").map(asBundle);
+    const bitstreamPageSize = Math.min(
+      options.bitstreamPageSize,
+      this.client.config.maxPageSize,
+    );
+    const bundlePage = await this.listBundlesPage(
+      itemUuid,
+      options.bundlePage,
+      bundlePageSize,
+      signal,
+    );
     const bundleResults = await Promise.all(
-      bundles.map(async (bundle) => {
-        const bitstreams = await this.listBundleBitstreams(bundle.uuid, signal);
+      bundlePage.bundles.map(async (bundle) => {
+        const bitstreams = await this.listBundleBitstreams(
+          bundle.uuid,
+          options.bitstreamPage,
+          bitstreamPageSize,
+          signal,
+        );
         return {
           uuid: bundle.uuid,
           name: bundle.name,
           classification: classifyBundle(bundle.name),
           files: bitstreams.files,
-          filesTruncated: bitstreams.truncated,
+          filesTruncated: bitstreams.pagination?.hasNext ?? false,
+          filesPagination: bitstreams.pagination,
         };
       }),
     );
     const warnings: string[] = [];
-    if (bundlePagination?.hasNext) {
-      warnings.push(
-        `Bundle list was capped at ${bundlePagination.pageSize} entries`,
-      );
+    if (options.bundlePageSize > bundlePageSize) {
+      warnings.push(`bundle_page_size was capped at ${bundlePageSize}`);
+    }
+    if (options.bitstreamPageSize > bitstreamPageSize) {
+      warnings.push(`bitstream_page_size was capped at ${bitstreamPageSize}`);
+    }
+    if (bundlePage.pagination?.hasNext) {
+      warnings.push("More bundle pages are available via bundle_page");
     }
     for (const bundle of bundleResults) {
       if (bundle.filesTruncated) {
-        warnings.push(`Bitstreams in bundle ${bundle.name} were capped`);
+        warnings.push(
+          `More files in bundle ${bundle.name} are available via bitstream_page`,
+        );
       }
     }
     return this.envelope(
       bundleResults,
-      bundlePagination,
-      response.source,
+      bundlePage.pagination,
+      bundlePage.source,
       warnings,
+      (bundlePage.pagination?.hasNext ?? false) ||
+        bundleResults.some((bundle) => bundle.filesTruncated),
     );
   }
 
@@ -258,25 +296,12 @@ export class NlaContentResolver {
       options.maxChars,
       this.client.config.maxTextChars,
     );
-    const files = await this.listItemFiles(options.itemUuid, signal);
-    const textFiles = files.data
-      .filter((bundle) => bundle.classification === "TEXT")
-      .flatMap((bundle) => bundle.files)
-      .filter((file) => normalizeMimeType(file.mimeType) === "text/plain");
-    const selected = options.bitstreamUuid
-      ? textFiles.find((file) => file.uuid === options.bitstreamUuid)
-      : textFiles[0];
+    const selected = await this.findTextBitstream(
+      options.itemUuid,
+      options.bitstreamUuid,
+      signal,
+    );
     if (!selected) {
-      if (files.truncated) {
-        throw new NlaError(
-          "NLA_RESPONSE_TOO_LARGE",
-          "Item file listing exceeded the configured page limit before a text extraction was found",
-          {
-            pageLimit: this.client.config.maxPageSize,
-            totalBundles: files.pagination?.totalElements,
-          },
-        );
-      }
       throw new NlaError(
         "NLA_NOT_FOUND",
         options.bitstreamUuid
@@ -302,7 +327,7 @@ export class NlaContentResolver {
       `core/bitstreams/${selected.uuid}/content`,
       {
         signal,
-        maxResponseBytes: this.client.config.maxMetadataBytes,
+        maxResponseBytes: this.client.config.maxTextBytes,
       },
     );
     if (normalizeMimeType(content.contentType) !== "text/plain") {
@@ -313,9 +338,9 @@ export class NlaContentResolver {
         },
       );
     }
-    const decoded = decodeUtf8(content.data);
+    const decoded = this.decodeTextContent(selected.uuid, content);
     const chunk = chunkUnicode(decoded, options.offsetChars, maximumChars);
-    const warnings = [...files.warnings];
+    const warnings: string[] = [];
     if (options.maxChars > maximumChars) {
       warnings.push(`max_chars was capped at ${maximumChars}`);
     }
@@ -347,6 +372,47 @@ export class NlaContentResolver {
     );
   }
 
+  private decodeTextContent(
+    bitstreamUuid: string,
+    content: Awaited<ReturnType<NlaClient["getBytes"]>>,
+  ): string {
+    const validator = content.source.etag ?? content.source.lastModified;
+    const cacheKey = validator ? `${bitstreamUuid}\n${validator}` : null;
+    if (cacheKey && this.client.config.cacheEnabled) {
+      const cached = this.decodedTextCache.get(cacheKey);
+      if (cached) {
+        this.decodedTextCache.delete(cacheKey);
+        this.decodedTextCache.set(cacheKey, cached);
+        return cached.text;
+      }
+    }
+
+    const text = decodeUtf8(content.data);
+    if (!cacheKey || !this.client.config.cacheEnabled) return text;
+
+    for (const [key, entry] of this.decodedTextCache) {
+      if (key.startsWith(`${bitstreamUuid}\n`) && key !== cacheKey) {
+        this.decodedTextCache.delete(key);
+        this.decodedTextCacheBytes -= entry.estimatedBytes;
+      }
+    }
+    const estimatedBytes = text.length * 2;
+    if (estimatedBytes > this.client.config.cacheMaxBytes) return text;
+    this.decodedTextCache.set(cacheKey, { text, estimatedBytes });
+    this.decodedTextCacheBytes += estimatedBytes;
+    while (
+      this.decodedTextCache.size > this.client.config.cacheMaxEntries ||
+      this.decodedTextCacheBytes > this.client.config.cacheMaxBytes
+    ) {
+      const oldestKey = this.decodedTextCache.keys().next().value;
+      if (typeof oldestKey !== "string") break;
+      const oldest = this.decodedTextCache.get(oldestKey);
+      this.decodedTextCache.delete(oldestKey);
+      if (oldest) this.decodedTextCacheBytes -= oldest.estimatedBytes;
+    }
+    return text;
+  }
+
   async readBitstreamContent(
     uuid: string,
     signal?: AbortSignal,
@@ -375,7 +441,7 @@ export class NlaContentResolver {
     }
     const isText = declaredMimeType === "text/plain";
     const byteLimit = isText
-      ? this.client.config.maxMetadataBytes
+      ? this.client.config.maxTextBytes
       : this.client.config.maxInlineBinaryBytes;
     if (!isText && bitstream.sizeBytes > byteLimit) {
       throw NlaError.responseTooLarge(byteLimit, bitstream.sizeBytes);
@@ -420,12 +486,14 @@ export class NlaContentResolver {
 
   private async listBundleBitstreams(
     bundleUuid: string,
+    page: number,
+    pageSize: number,
     signal?: AbortSignal,
-  ): Promise<{ files: ResolvedBitstream[]; truncated: boolean }> {
+  ): Promise<{ files: ResolvedBitstream[]; pagination: Pagination | null }> {
     const response = await this.client.getJson<unknown>(
       `core/bundles/${bundleUuid}/bitstreams`,
       {
-        query: { page: 0, size: this.client.config.maxPageSize },
+        query: { page, size: pageSize },
         signal,
       },
     );
@@ -454,7 +522,79 @@ export class NlaContentResolver {
         );
       }),
     );
-    return { files, truncated: pagination?.hasNext ?? false };
+    return { files, pagination };
+  }
+
+  private async listBundlesPage(
+    itemUuid: string,
+    page: number,
+    pageSize: number,
+    signal?: AbortSignal,
+  ): Promise<{
+    bundles: Array<DspaceObject & { uuid: string; name: string }>;
+    pagination: Pagination | null;
+    source: Source;
+  }> {
+    const response = await this.client.getJson<unknown>(
+      `core/items/${itemUuid}/bundles`,
+      { query: { page, size: pageSize }, signal },
+    );
+    const document = requireHalDocument(response.data);
+    validatedLinks(document, this.client.urlPolicy);
+    return {
+      bundles: getEmbedded<unknown>(document, "bundles").map(asBundle),
+      pagination: paginationFrom(document),
+      source: response.source,
+    };
+  }
+
+  private async findTextBitstream(
+    itemUuid: string,
+    requestedUuid: string | undefined,
+    signal?: AbortSignal,
+  ): Promise<ResolvedBitstream | undefined> {
+    const pageSize = this.client.config.maxPageSize;
+    let inspected = 0;
+    let bundlePageNumber = 0;
+    while (true) {
+      const bundlePage = await this.listBundlesPage(
+        itemUuid,
+        bundlePageNumber,
+        pageSize,
+        signal,
+      );
+      inspected += bundlePage.bundles.length;
+      for (const bundle of bundlePage.bundles) {
+        if (classifyBundle(bundle.name) !== "TEXT") continue;
+        let bitstreamPageNumber = 0;
+        while (true) {
+          const bitstreamPage = await this.listBundleBitstreams(
+            bundle.uuid,
+            bitstreamPageNumber,
+            pageSize,
+            signal,
+          );
+          inspected += bitstreamPage.files.length;
+          if (inspected > TEXT_DISCOVERY_MAX_RECORDS) {
+            throw new NlaError(
+              "NLA_RESPONSE_TOO_LARGE",
+              "Text discovery exceeded its bounded record limit; select a bitstream UUID from list_item_files",
+              { recordLimit: TEXT_DISCOVERY_MAX_RECORDS },
+            );
+          }
+          const selected = bitstreamPage.files.find(
+            (file) =>
+              normalizeMimeType(file.mimeType) === "text/plain" &&
+              (requestedUuid === undefined || file.uuid === requestedUuid),
+          );
+          if (selected) return selected;
+          if (!bitstreamPage.pagination?.hasNext) break;
+          bitstreamPageNumber += 1;
+        }
+      }
+      if (!bundlePage.pagination?.hasNext) return undefined;
+      bundlePageNumber += 1;
+    }
   }
 
   private resolveBitstream(

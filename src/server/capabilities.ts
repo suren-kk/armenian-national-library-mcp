@@ -11,6 +11,7 @@ export function capabilitySummary(config: AppConfig) {
     contentRights:
       "Technical access is not permission for reuse; source rights may be unknown" as const,
     profile: "public-read" as const,
+    upstreamReadiness: "not-checked" as const,
     transport: config.mcp.transport,
     apiBaseUrl: config.nla.apiBaseUrl,
     capabilities: [

@@ -1,8 +1,8 @@
 import { NlaError } from "./errors.js";
 import type { DspacePage, HalDocument, Pagination } from "./types.js";
 
-function isFiniteNonNegative(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+function isSafeNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 export function parsePage(value: unknown): DspacePage | null {
@@ -11,14 +11,25 @@ export function parsePage(value: unknown): DspacePage | null {
     throw NlaError.invalidResponse("Malformed DSpace page metadata");
   const page = value as Partial<DspacePage>;
   if (
-    !isFiniteNonNegative(page.number) ||
-    !isFiniteNonNegative(page.size) ||
-    !isFiniteNonNegative(page.totalElements) ||
-    !isFiniteNonNegative(page.totalPages)
+    !isSafeNonNegativeInteger(page.number) ||
+    !isSafeNonNegativeInteger(page.size) ||
+    !isSafeNonNegativeInteger(page.totalElements) ||
+    !isSafeNonNegativeInteger(page.totalPages)
   ) {
     throw NlaError.invalidResponse("Malformed DSpace page values");
   }
-  return page as DspacePage;
+  if (
+    (page.totalPages === 0 && page.totalElements !== 0) ||
+    (page.totalPages > 0 && page.number >= page.totalPages)
+  ) {
+    throw NlaError.invalidResponse("Contradictory DSpace page values");
+  }
+  return {
+    number: page.number,
+    size: page.size,
+    totalElements: page.totalElements,
+    totalPages: page.totalPages,
+  };
 }
 
 export function paginationFrom(document: HalDocument): Pagination | null {

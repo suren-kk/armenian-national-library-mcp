@@ -109,6 +109,15 @@ export function loadEndpointRegistry(
   return result.data;
 }
 
+let sharedDefaultRegistry: readonly EndpointRecord[] | undefined;
+
+export function getDefaultEndpointRegistry(): readonly EndpointRecord[] {
+  sharedDefaultRegistry ??= Object.freeze(
+    loadEndpointRegistry().map((record) => Object.freeze(record)),
+  );
+  return sharedDefaultRegistry;
+}
+
 export function endpointFamily(path: string): string {
   if (path === "/") return "root";
   if (path.startsWith("/server/actuator")) return "actuator";

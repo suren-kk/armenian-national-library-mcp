@@ -1,8 +1,10 @@
 import { z } from "zod";
 import {
+  facetNameSchema,
   filterSchema,
   pageSchema,
   pageSizeSchema,
+  sortSchema,
   uuidSchema,
 } from "./common.js";
 
@@ -12,13 +14,13 @@ export const searchCatalogInput = z.object({
   scope_uuid: uuidSchema.optional(),
   page: pageSchema,
   page_size: pageSizeSchema,
-  sort: z.string().min(1).max(100).optional(),
+  sort: sortSchema.optional(),
   filters: z.array(filterSchema).max(20).default([]),
   include_metadata: z.boolean().default(false),
 });
 
 export const searchFacetsInput = z.object({
-  facet: z.string().min(1).max(100).optional(),
+  facet: facetNameSchema.optional(),
   query: z.string().max(2_000).optional(),
   scope_uuid: uuidSchema.optional(),
   page: pageSchema,
@@ -31,7 +33,7 @@ export const browseCatalogInput = z.object({
   scope_uuid: uuidSchema.optional(),
   page: pageSchema,
   page_size: pageSizeSchema,
-  sort: z.string().min(1).max(100).optional(),
+  sort: sortSchema.optional(),
 });
 
 export const pagedInput = z.object({
@@ -40,6 +42,12 @@ export const pagedInput = z.object({
 });
 export const uuidInput = z.object({ uuid: uuidSchema });
 export const itemIdInput = z.object({ item_id: z.string().min(1).max(500) });
+export const itemFilesInput = itemIdInput.extend({
+  bundle_page: pageSchema,
+  bundle_page_size: pageSizeSchema,
+  bitstream_page: pageSchema,
+  bitstream_page_size: pageSizeSchema,
+});
 export const itemTextInput = z.object({
   item_id: z.string().min(1).max(500),
   bitstream_uuid: uuidSchema.optional(),
@@ -56,7 +64,7 @@ export const collectionItemsInput = z.object({
   query: z.string().min(1).max(2_000).default("*"),
   page: pageSchema,
   page_size: pageSizeSchema,
-  sort: z.string().min(1).max(100).optional(),
+  sort: sortSchema.optional(),
 });
 
 export const communityChildrenInput = z.object({

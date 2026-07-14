@@ -13,9 +13,12 @@ Technical access is not permission for reuse. Source-declared rights fields are 
 
 Only NLA-provided `text/plain` files in a `TEXT` bundle are selected by `get_item_text`. The provenance is labelled `nla-provided-extracted-text`; no local PDF extraction or OCR is performed.
 
+On a cold cache, `list_item_files` makes two enumeration requests plus two detail requests (format and access) for each returned bitstream. Detail requests run under the global concurrency bound and identical requests are coalesced; the regression suite fixes the one-file budget at four upstream calls. Use small continuation pages when an item has many files.
+
 ## Limits
 
 - `get_item_text` defaults to 8,000 Unicode code points and is capped by `NLA_MAX_TEXT_CHARS`.
+- Text extraction files are downloaded as whole files and must fit the independent `NLA_MAX_TEXT_BYTES` ceiling (8 MiB by default, 64 MiB maximum). Chunking limits MCP output size, not upstream transfer size.
 - Offsets count Unicode code points, so chunks do not split surrogate pairs.
 - Full text resources are returned only when the complete text fits `NLA_MAX_TEXT_CHARS`.
 - Binary resources are returned as base64 only for signature-matched PNG, JPEG, or GIF data when metadata size and streamed bytes both fit `NLA_MAX_INLINE_BINARY_BYTES`.

@@ -8,6 +8,8 @@ describe("configuration", () => {
     expect(config.nla.allowedHost).toBe("api.nla.am");
     expect(config.mcp.transport).toBe("stdio");
     expect(config.nla.maxPageSize).toBe(50);
+    expect(config.nla.maxTextBytes).toBe(8_388_608);
+    expect(config.nla.metricsMode).toBe("none");
     expect(config.nla.cacheMaxEntries).toBe(128);
     expect(config.nla.cacheMaxBytes).toBe(16_777_216);
     expect(config.mcp.allowedHosts).toEqual(["127.0.0.1", "localhost"]);
@@ -22,6 +24,11 @@ describe("configuration", () => {
     expect(config.mcp.rateLimitMaxIdentities).toBe(2_048);
     expect(config.mcp.authMode).toBe("local");
     expect(config.mcp.trustProxy).toBe(false);
+  });
+
+  it("bounds metadata and text download configuration", () => {
+    expect(() => loadConfig({ NLA_MAX_METADATA_BYTES: "16777217" })).toThrow();
+    expect(() => loadConfig({ NLA_MAX_TEXT_BYTES: "67108865" })).toThrow();
   });
 
   it("rejects a base URL outside the allowlisted host", () => {

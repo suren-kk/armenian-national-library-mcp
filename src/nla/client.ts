@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { NlaConfig } from "../config.js";
 import { Logger } from "../observability/logger.js";
+import {
+  LogMetrics,
+  noopMetrics,
+  type Metrics,
+} from "../observability/metrics.js";
 import { readResponseBytes } from "../security/content-limits.js";
 import { sanitizeUnknown } from "../security/output-sanitizer.js";
 import { UrlPolicy } from "../security/url-policy.js";
@@ -9,6 +14,7 @@ import type { NlaHttpResult, Source } from "./types.js";
 
 type Fetch = typeof globalThis.fetch;
 type HttpMethod = "GET" | "HEAD";
+const MAX_UPSTREAM_URL_LENGTH = 8_192;
 
 interface CacheEntry {
   bytes: Uint8Array;
@@ -17,6 +23,14 @@ interface CacheEntry {
   lastModified?: string;
   storedAt: number;
   status: number;
+}
+
+interface RequestResult {
+  bytes: Uint8Array;
+  source: Source;
+  status: number;
+  contentType: string;
+  cacheHit: boolean;
 }
 
 interface RequestOptions {
@@ -28,6 +42,24 @@ interface RequestOptions {
   maxResponseBytes?: number;
   headers?: Readonly<Record<string, string>>;
 }
+
+export interface NlaClientRuntime {
+  now: () => number;
+  monotonicNow: () => number;
+  random: () => number;
+  sleep: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
+  timeoutSignal: (milliseconds: number) => AbortSignal;
+  metrics: Metrics;
+}
+
+const defaultRuntime: NlaClientRuntime = Object.freeze({
+  now: Date.now,
+  monotonicNow: () => performance.now(),
+  random: Math.random,
+  sleep: wait,
+  timeoutSignal: (milliseconds: number) => AbortSignal.timeout(milliseconds),
+  metrics: noopMetrics,
+});
 
 class Semaphore {
   private active = 0;
@@ -41,6 +73,10 @@ class Semaphore {
   constructor(
     private readonly maximum: number,
     private readonly maximumQueue = maximum * 4,
+    private readonly onStateChange: (
+      active: number,
+      queued: number,
+    ) => void = () => undefined,
   ) {}
 
   async use<T>(operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
@@ -59,7 +95,10 @@ class Semaphore {
         };
         const onAbort = () => {
           const index = this.waiters.indexOf(waiter);
-          if (index >= 0) this.waiters.splice(index, 1);
+          if (index >= 0) {
+            this.waiters.splice(index, 1);
+            this.onStateChange(this.active, this.waiters.length);
+          }
           reject(
             signal?.reason instanceof Error
               ? signal.reason
@@ -71,10 +110,12 @@ class Semaphore {
         else {
           signal?.addEventListener("abort", onAbort, { once: true });
           this.waiters.push(waiter);
+          this.onStateChange(this.active, this.waiters.length);
         }
       });
     }
     this.active += 1;
+    this.onStateChange(this.active, this.waiters.length);
     try {
       return await operation();
     } finally {
@@ -84,16 +125,20 @@ class Semaphore {
         waiter.signal?.removeEventListener("abort", waiter.onAbort!);
         waiter.resolve();
       }
+      this.onStateChange(this.active, this.waiters.length);
     }
   }
 }
 
-function retryAfterMilliseconds(value: string | null): number | null {
+function retryAfterMilliseconds(
+  value: string | null,
+  now: () => number = Date.now,
+): number | null {
   if (!value) return null;
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1_000;
   const date = Date.parse(value);
-  return Number.isNaN(date) ? null : Math.max(0, date - Date.now());
+  return Number.isNaN(date) ? null : Math.max(0, date - now());
 }
 
 function urlForLog(url: URL, policy: UrlPolicy): string {
@@ -133,19 +178,67 @@ async function cancelResponseBody(response: Response): Promise<void> {
   }
 }
 
+async function awaitWithAbort<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) {
+    throw signal.reason instanceof Error
+      ? signal.reason
+      : new Error("Request aborted");
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      reject(
+        signal.reason instanceof Error
+          ? signal.reason
+          : new Error("Request aborted"),
+      );
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    void promise.then(resolve, reject).finally(() => {
+      signal.removeEventListener("abort", onAbort);
+    });
+  });
+}
+
+function isJsonMediaType(contentType: string): boolean {
+  const mediaType = (contentType.split(";", 1)[0] ?? "").trim().toLowerCase();
+  if (mediaType === "application/json") return true;
+  const slash = mediaType.indexOf("/");
+  return slash > 0 && mediaType.slice(slash + 1).endsWith("+json");
+}
+
 export class NlaClient {
   readonly urlPolicy: UrlPolicy;
   private readonly semaphore: Semaphore;
   private readonly cache = new Map<string, CacheEntry>();
+  private readonly inFlight = new Map<string, Promise<RequestResult>>();
   private cacheBytes = 0;
+  private readonly runtime: NlaClientRuntime;
 
   constructor(
     readonly config: NlaConfig,
     private readonly fetchImplementation: Fetch = globalThis.fetch,
     private readonly logger = new Logger("nla-client"),
+    runtime: Partial<NlaClientRuntime> = {},
   ) {
+    this.runtime = {
+      ...defaultRuntime,
+      metrics:
+        config.metricsMode === "log" ? new LogMetrics(logger) : noopMetrics,
+      ...runtime,
+    };
     this.urlPolicy = new UrlPolicy(config.apiBaseUrl, config.allowedHost);
-    this.semaphore = new Semaphore(config.maxConcurrency);
+    this.semaphore = new Semaphore(
+      config.maxConcurrency,
+      config.maxConcurrency * 4,
+      (active, queued) => {
+        this.runtime.metrics.set("nla_upstream_active_requests", active);
+        this.runtime.metrics.set("nla_upstream_queue_depth", queued);
+      },
+    );
   }
 
   async getJson<T>(
@@ -153,7 +246,7 @@ export class NlaClient {
     options: RequestOptions = {},
   ): Promise<NlaHttpResult<T>> {
     const result = await this.request("GET", path, options);
-    if (!result.contentType.includes("json") && result.bytes.byteLength > 0) {
+    if (!isJsonMediaType(result.contentType) && result.bytes.byteLength > 0) {
       throw NlaError.invalidResponse("Expected JSON from the NLA API", {
         contentType: result.contentType,
       });
@@ -219,6 +312,12 @@ export class NlaClient {
         url.searchParams.set(key, String(value));
       }
     }
+    if (url.toString().length > MAX_UPSTREAM_URL_LENGTH) {
+      throw NlaError.invalidResponse(
+        "NLA request URL exceeds the supported length; reduce filters or query text",
+        { maximumUrlLength: MAX_UPSTREAM_URL_LENGTH },
+      );
+    }
     return url;
   }
 
@@ -226,13 +325,7 @@ export class NlaClient {
     method: HttpMethod,
     path: string,
     options: RequestOptions,
-  ): Promise<{
-    bytes: Uint8Array;
-    source: Source;
-    status: number;
-    contentType: string;
-    cacheHit: boolean;
-  }> {
+  ): Promise<RequestResult> {
     const initialUrl = this.buildUrl(path, options.query);
     const maximumBytes =
       options.maxResponseBytes ?? this.config.maxMetadataBytes;
@@ -241,15 +334,75 @@ export class NlaClient {
       method === "GET" && this.config.cacheEnabled
         ? this.cache.get(cacheKey)
         : undefined;
-    if (cached && Date.now() - cached.storedAt <= this.config.cacheTtlMs) {
+    if (
+      cached &&
+      this.runtime.now() - cached.storedAt <= this.config.cacheTtlMs
+    ) {
       this.touchCache(cacheKey, cached);
+      this.runtime.metrics.increment("nla_cache_requests_total", 1, {
+        result: "hit",
+      });
       return this.fromCache(initialUrl.toString(), cached, maximumBytes);
     }
+    if (method === "GET" && this.config.cacheEnabled) {
+      this.runtime.metrics.increment("nla_cache_requests_total", 1, {
+        result: cached ? "revalidate" : "miss",
+      });
+    }
 
+    if (method === "GET") {
+      let shared = this.inFlight.get(cacheKey);
+      if (!shared) {
+        const sharedMaximumBytes = Math.max(
+          this.config.maxMetadataBytes,
+          this.config.maxTextBytes,
+          this.config.maxInlineBinaryBytes,
+        );
+        shared = this.requestUpstream(
+          method,
+          initialUrl,
+          cacheKey,
+          cached,
+          sharedMaximumBytes,
+          { ...options, signal: undefined },
+        );
+        this.inFlight.set(cacheKey, shared);
+        void shared
+          .finally(() => {
+            if (this.inFlight.get(cacheKey) === shared) {
+              this.inFlight.delete(cacheKey);
+            }
+          })
+          .catch(() => undefined);
+      }
+      const result = await awaitWithAbort(shared, options.signal);
+      return this.enforceResultLimit(result, maximumBytes);
+    }
+
+    return this.requestUpstream(
+      method,
+      initialUrl,
+      cacheKey,
+      cached,
+      maximumBytes,
+      options,
+    );
+  }
+
+  private async requestUpstream(
+    method: HttpMethod,
+    initialUrl: URL,
+    cacheKey: string,
+    cached: CacheEntry | undefined,
+    maximumBytes: number,
+    options: RequestOptions,
+  ): Promise<RequestResult> {
     return this.semaphore.use(async () => {
       const requestId = randomUUID();
-      const startedAt = performance.now();
-      const timeoutSignal = AbortSignal.timeout(this.config.httpTimeoutMs);
+      const startedAt = this.runtime.monotonicNow();
+      const timeoutSignal = this.runtime.timeoutSignal(
+        this.config.httpTimeoutMs,
+      );
       const signal = options.signal
         ? AbortSignal.any([options.signal, timeoutSignal])
         : timeoutSignal;
@@ -288,7 +441,7 @@ export class NlaClient {
             }
             if (retries < this.config.maxRetries) {
               retries += 1;
-              await wait(this.backoff(retries), signal);
+              await this.runtime.sleep(this.backoff(retries), signal);
               continue;
             }
             throw new NlaError(
@@ -318,7 +471,7 @@ export class NlaClient {
 
           if (response.status === 304 && cached) {
             await cancelResponseBody(response);
-            cached.storedAt = Date.now();
+            cached.storedAt = this.runtime.now();
             return this.fromCache(initialUrl.toString(), cached, maximumBytes);
           }
 
@@ -330,8 +483,12 @@ export class NlaClient {
             retries += 1;
             const retryAfter = retryAfterMilliseconds(
               response.headers.get("retry-after"),
+              this.runtime.now,
             );
-            await wait(retryAfter ?? this.backoff(retries), signal);
+            await this.runtime.sleep(
+              retryAfter ?? this.backoff(retries),
+              signal,
+            );
             continue;
           }
 
@@ -353,7 +510,7 @@ export class NlaClient {
           const entry: CacheEntry = {
             bytes,
             contentType,
-            storedAt: Date.now(),
+            storedAt: this.runtime.now(),
             status: response.status,
             ...(response.headers.get("etag")
               ? { etag: response.headers.get("etag")! }
@@ -365,6 +522,31 @@ export class NlaClient {
           if (method === "GET" && this.config.cacheEnabled)
             this.storeCache(cacheKey, entry);
 
+          const durationMs = Math.round(
+            this.runtime.monotonicNow() - startedAt,
+          );
+          const metricLabels = {
+            method,
+            statusClass: `${Math.floor(response.status / 100)}xx`,
+          };
+          this.runtime.metrics.increment(
+            "nla_upstream_requests_total",
+            1,
+            metricLabels,
+          );
+          this.runtime.metrics.observe(
+            "nla_upstream_request_duration_ms",
+            durationMs,
+            metricLabels,
+          );
+          this.runtime.metrics.observe(
+            "nla_upstream_response_bytes",
+            bytes.byteLength,
+            metricLabels,
+          );
+          this.runtime.metrics.observe("nla_upstream_retries", retries, {
+            method,
+          });
           this.logger.info("upstream_request", {
             requestId,
             method,
@@ -373,7 +555,7 @@ export class NlaClient {
             retries,
             redirects,
             bytes: bytes.byteLength,
-            durationMs: Math.round(performance.now() - startedAt),
+            durationMs,
             cacheHit: false,
           });
           return {
@@ -385,25 +567,40 @@ export class NlaClient {
           };
         }
       } catch (error) {
+        const errorCode = error instanceof NlaError ? error.code : "ABORTED";
+        this.runtime.metrics.increment("nla_upstream_failures_total", 1, {
+          method,
+          errorCode,
+        });
         this.logger.warn("upstream_request_failed", {
           requestId,
           method,
           url: urlForLog(url, this.urlPolicy),
           retries,
           redirects,
-          durationMs: Math.round(performance.now() - startedAt),
-          errorCode: error instanceof NlaError ? error.code : "ABORTED",
+          durationMs: Math.round(this.runtime.monotonicNow() - startedAt),
+          errorCode,
         });
         throw error;
       }
     }, options.signal);
   }
 
+  private enforceResultLimit(
+    result: RequestResult,
+    maximumBytes: number,
+  ): RequestResult {
+    if (result.bytes.byteLength > maximumBytes) {
+      throw NlaError.responseTooLarge(maximumBytes, result.bytes.byteLength);
+    }
+    return result;
+  }
+
   private sourceFrom(url: URL, headers: Headers): Source {
     return {
       repository: "National Library of Armenia",
       url: url.toString(),
-      retrievedAt: new Date().toISOString(),
+      retrievedAt: new Date(this.runtime.now()).toISOString(),
       ...(headers.get("etag") ? { etag: headers.get("etag")! } : {}),
       ...(headers.get("last-modified")
         ? { lastModified: headers.get("last-modified")! }
@@ -424,7 +621,7 @@ export class NlaClient {
       source: {
         repository: "National Library of Armenia" as const,
         url: sourceUrl,
-        retrievedAt: new Date().toISOString(),
+        retrievedAt: new Date(this.runtime.now()).toISOString(),
         ...(cached.etag ? { etag: cached.etag } : {}),
         ...(cached.lastModified ? { lastModified: cached.lastModified } : {}),
       },
@@ -464,6 +661,7 @@ export class NlaClient {
       evicted += 1;
     }
     if (evicted > 0) {
+      this.runtime.metrics.increment("nla_cache_evictions_total", evicted);
       this.logger.debug("cache_evicted", {
         evicted,
         entries: this.cache.size,
@@ -485,6 +683,6 @@ export class NlaClient {
 
   private backoff(attempt: number): number {
     const base = Math.min(2_000, 150 * 2 ** (attempt - 1));
-    return Math.round(base * (0.75 + Math.random() * 0.5));
+    return Math.round(base * (0.75 + this.runtime.random() * 0.5));
   }
 }

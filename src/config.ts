@@ -51,7 +51,14 @@ export const configSchema = z
       .number()
       .int()
       .positive()
+      .max(16_777_216)
       .default(2_097_152),
+    NLA_MAX_TEXT_BYTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(67_108_864)
+      .default(8_388_608),
     NLA_MAX_TEXT_CHARS: z.coerce.number().int().positive().default(50_000),
     NLA_MAX_INLINE_BINARY_BYTES: z.coerce
       .number()
@@ -61,6 +68,7 @@ export const configSchema = z
     NLA_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(6),
     NLA_MAX_REDIRECTS: z.coerce.number().int().min(0).max(10).default(3),
     NLA_MAX_RETRIES: z.coerce.number().int().min(0).max(8).default(3),
+    NLA_METRICS_MODE: z.enum(["none", "log"]).default("none"),
     NLA_CACHE_ENABLED: booleanFromString.default(true),
     NLA_CACHE_TTL_MS: z.coerce.number().int().min(0).default(30_000),
     NLA_CACHE_MAX_ENTRIES: z.coerce
@@ -193,11 +201,13 @@ export const configSchema = z
         httpTimeoutMs: env.NLA_HTTP_TIMEOUT_MS,
         maxPageSize: env.NLA_MAX_PAGE_SIZE,
         maxMetadataBytes: env.NLA_MAX_METADATA_BYTES,
+        maxTextBytes: env.NLA_MAX_TEXT_BYTES,
         maxTextChars: env.NLA_MAX_TEXT_CHARS,
         maxInlineBinaryBytes: env.NLA_MAX_INLINE_BINARY_BYTES,
         maxConcurrency: env.NLA_MAX_CONCURRENCY,
         maxRedirects: env.NLA_MAX_REDIRECTS,
         maxRetries: env.NLA_MAX_RETRIES,
+        metricsMode: env.NLA_METRICS_MODE,
         cacheEnabled: env.NLA_CACHE_ENABLED,
         cacheTtlMs: env.NLA_CACHE_TTL_MS,
         cacheMaxEntries: env.NLA_CACHE_MAX_ENTRIES,

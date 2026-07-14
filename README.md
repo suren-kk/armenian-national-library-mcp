@@ -130,7 +130,7 @@ Content resource templates are:
 
 The static `nla://api/endpoints` resource contains the complete validated endpoint catalogue. Prefer the semantic tools above. Use `get_api_capabilities` to inspect coverage and `nla_api_get` only for approved read endpoints that do not have a suitable semantic tool. The raw tool accepts only API-relative paths, `GET`/`HEAD`, bounded queries, and JSON or plain-text responses; it rejects mutation methods, arbitrary hosts, caller headers, traversal, and bitstream content.
 
-Use `get_item_text` with `offset_chars` for larger text. Original PDFs and other complex documents are represented by metadata and canonical HTTPS download URLs, never inline MCP content. Only bounded UTF-8 plain text and signature-matched PNG, JPEG, or GIF data can be returned inline; binaries larger than `NLA_MAX_INLINE_BINARY_BYTES` are never base64-encoded into model context. See `docs/content-access.md`.
+Use `get_item_text` with `offset_chars` for larger text. Each text bitstream is downloaded as a whole under the dedicated `NLA_MAX_TEXT_BYTES` ceiling and then sliced into bounded Unicode chunks. Validator-backed decoded text is reused under the same byte-bounded cache policy for subsequent chunks. Original PDFs and other complex documents are represented by metadata and canonical HTTPS download URLs, never inline MCP content. Only bounded UTF-8 plain text and signature-matched PNG, JPEG, or GIF data can be returned inline; binaries larger than `NLA_MAX_INLINE_BINARY_BYTES` are never base64-encoded into model context. See `docs/content-access.md`.
 
 ## Tests
 
@@ -151,6 +151,8 @@ npm run drift:check
 The live tests verify the API root, endpoint coverage, a controlled raw read, Discover search, known-handle resolution, bundle/bitstream enumeration, chunked access to the tested 83 KB extraction, and the associated original PDF link. They do not assert mutable repository counts. The drift command exits non-zero when a root relation is added, removed, or moved; set `NLA_DRIFT_CHECK_ACCESS=true` to also probe classified anonymous-access behavior.
 
 See `docs/endpoint-coverage.md` for the matrix fields, security policy, and drift-check behavior.
+
+The enforced runtime layering and dependency rules are documented in [Architecture](docs/architecture.md).
 
 Provider-neutral eval and compatibility checks are available separately:
 

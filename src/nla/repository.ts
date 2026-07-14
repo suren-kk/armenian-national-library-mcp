@@ -1,7 +1,6 @@
 import {
   getEmbedded,
   getEmbeddedObject,
-  isHalDocument,
   requireHalDocument,
   validatedLinks,
 } from "./hal.js";
@@ -19,21 +18,18 @@ import type { NlaClient } from "./client.js";
 import {
   NlaContentResolver,
   type BundleWithFiles,
-  decodeUtf8,
+  type ItemFilesPageOptions,
 } from "./content-resolver.js";
 import {
   checkEndpointRegistryDrift,
   concreteEndpointPath,
-  loadEndpointRegistry,
+  getDefaultEndpointRegistry,
   summarizeEndpointRegistry,
   type EndpointRecord,
 } from "./endpoint-registry.js";
-import { assertRawApiPath } from "../security/raw-api-policy.js";
-import {
-  sanitizeUnknown,
-  stripUpstreamLinks,
-} from "../security/output-sanitizer.js";
-import { parseDspaceObject } from "./upstream-schemas.js";
+import { stripUpstreamLinks } from "../security/output-sanitizer.js";
+import { parseDspaceObject, parseSearchObject } from "./upstream-schemas.js";
+import { NlaRawApiService, type RawApiOptions } from "./raw-api-service.js";
 
 export interface SearchFilter {
   field: string;
@@ -57,11 +53,6 @@ export interface PageOptions {
   page_size: number;
 }
 
-interface SearchObject {
-  hitHighlights?: Record<string, string[]>;
-  _embedded?: { indexableObject?: DspaceObject };
-}
-
 function asDspaceObject(value: unknown): DspaceObject {
   return parseDspaceObject(value);
 }
@@ -72,13 +63,15 @@ function boundedPageSize(requested: number, maximum: number): number {
 
 export class NlaRepository {
   readonly content: NlaContentResolver;
+  readonly rawApi: NlaRawApiService;
 
   constructor(
     private readonly client: NlaClient,
     content?: NlaContentResolver,
-    readonly endpoints: readonly EndpointRecord[] = loadEndpointRegistry(),
+    readonly endpoints: readonly EndpointRecord[] = getDefaultEndpointRegistry(),
   ) {
     this.content = content ?? new NlaContentResolver(client);
+    this.rawApi = new NlaRawApiService(client, endpoints);
   }
 
   async search(
@@ -102,7 +95,13 @@ export class NlaRepository {
         options.dso_type === "all" ? undefined : options.dso_type.toUpperCase(),
     };
     for (const filter of options.filters) {
-      query[`f.${filter.field}`] = `${filter.value},${filter.operator}`;
+      const key = `f.${filter.field}`;
+      const encoded = `${filter.value},${filter.operator}`;
+      const existing = query[key];
+      if (existing === undefined) query[key] = encoded;
+      else if (typeof existing === "string" || typeof existing === "number")
+        query[key] = [String(existing), encoded];
+      else query[key] = [...existing, encoded];
     }
 
     const response = await this.client.getJson<unknown>(
@@ -114,9 +113,11 @@ export class NlaRepository {
     const result = getEmbeddedObject<HalDocument>(document, "searchResult");
     if (!result)
       throw NlaError.invalidResponse("Search response omitted searchResult");
-    const rawObjects = getEmbedded<SearchObject>(result, "objects");
+    const rawObjects = getEmbedded<unknown>(result, "objects").map(
+      parseSearchObject,
+    );
     const results = rawObjects.map((hit) => {
-      const object = asDspaceObject(hit._embedded?.indexableObject);
+      const object = hit._embedded.indexableObject;
       const normalized = normalizeDspaceObject(object);
       return {
         ...(options.include_metadata
@@ -306,13 +307,14 @@ export class NlaRepository {
 
   async listItemFiles(
     identifier: string,
+    options?: ItemFilesPageOptions,
     signal?: AbortSignal,
   ): Promise<
     Envelope<{ item: NormalizedDspaceObject; bundles: BundleWithFiles[] }>
   > {
     const item = await this.getItem(identifier, signal);
     const uuid = item.data.normalized.uuid;
-    const bundles = await this.content.listItemFiles(uuid, signal);
+    const bundles = await this.content.listItemFiles(uuid, options, signal);
     return this.envelope(
       {
         item: item.data,
@@ -386,110 +388,10 @@ export class NlaRepository {
   }
 
   async rawApiGet(
-    options: {
-      method: "GET" | "HEAD";
-      path: string;
-      query: Record<
-        string,
-        string | number | boolean | readonly string[] | undefined
-      >;
-      page?: number | undefined;
-      pageSize?: number | undefined;
-      maxResponseBytes?: number | undefined;
-    },
+    options: RawApiOptions,
     signal?: AbortSignal,
   ): Promise<Envelope<unknown>> {
-    assertRawApiPath(options.path, this.endpoints);
-    const pageSize =
-      options.pageSize === undefined
-        ? undefined
-        : Math.min(options.pageSize, this.client.config.maxPageSize);
-    const maximumBytes = Math.min(
-      options.maxResponseBytes ?? this.client.config.maxMetadataBytes,
-      this.client.config.maxMetadataBytes,
-    );
-    const query = {
-      ...options.query,
-      ...(options.page !== undefined ? { page: options.page } : {}),
-      ...(pageSize !== undefined ? { size: pageSize } : {}),
-    };
-    const path = options.path === "/" ? "" : options.path;
-    const warnings: string[] = [];
-    if (
-      options.pageSize !== undefined &&
-      options.pageSize > this.client.config.maxPageSize
-    ) {
-      warnings.push(`page_size was capped at ${pageSize}`);
-    }
-    if (
-      options.maxResponseBytes !== undefined &&
-      options.maxResponseBytes > maximumBytes
-    ) {
-      warnings.push(`max_response_bytes was capped at ${maximumBytes}`);
-    }
-    if (options.method === "HEAD") {
-      const response = await this.client.head(path, { query, signal });
-      return this.envelope(
-        {
-          method: "HEAD",
-          path: options.path,
-          status: response.status,
-          contentType: response.contentType,
-          body: null,
-        },
-        null,
-        response.source,
-        warnings,
-      );
-    }
-    const response = await this.client.getBytes(path, {
-      query,
-      signal,
-      maxResponseBytes: maximumBytes,
-      headers: { Accept: "application/hal+json, application/json, text/plain" },
-    });
-    const contentType = (response.contentType.split(";", 1)[0] ?? "")
-      .trim()
-      .toLowerCase();
-    const isJson =
-      contentType === "application/json" || contentType.endsWith("+json");
-    let body: unknown;
-    if (isJson) {
-      try {
-        body = sanitizeUnknown(
-          JSON.parse(
-            new TextDecoder("utf-8", { fatal: true }).decode(response.data),
-          ) as unknown,
-        );
-      } catch (error) {
-        throw NlaError.invalidResponse(
-          "Raw NLA endpoint returned malformed JSON",
-          {
-            cause: error instanceof Error ? error.message : String(error),
-          },
-        );
-      }
-    } else if (contentType.startsWith("text/plain")) {
-      body = decodeUtf8(response.data);
-    } else {
-      throw NlaError.invalidResponse(
-        "nla_api_get only returns JSON or plain text; use content tools for files",
-        { contentType: response.contentType },
-      );
-    }
-    const document = isHalDocument(body) ? body : null;
-    return this.envelope(
-      {
-        method: "GET",
-        path: options.path,
-        status: response.status,
-        contentType: response.contentType,
-        body,
-      },
-      document ? paginationFrom(document) : null,
-      response.source,
-      warnings,
-    );
+    return this.rawApi.get(options, signal);
   }
 
   async resolveIdentifier(
@@ -609,7 +511,15 @@ function identifierPath(identifier: string): string {
       "Identifier must be a DSpace UUID, handle, or canonical NLA handle URL",
     );
   }
-  if (url.protocol !== "https:" || url.hostname !== "dspace.nla.am") {
+  if (
+    url.protocol !== "https:" ||
+    url.hostname !== "dspace.nla.am" ||
+    url.username !== "" ||
+    url.password !== "" ||
+    url.port !== "" ||
+    url.search !== "" ||
+    url.hash !== ""
+  ) {
     throw NlaError.invalidResponse(
       "Only canonical https://dspace.nla.am handle URLs are accepted",
     );

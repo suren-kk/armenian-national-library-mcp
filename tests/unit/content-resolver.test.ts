@@ -23,6 +23,7 @@ function fixtureFetch(
   bitstreamTotalPages = 1,
   filename = "document.pdf.txt",
   accessStatus = "open.access",
+  textBitstreamPage = 0,
 ) {
   // Async keeps this test double assignable to the platform fetch signature.
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -38,28 +39,32 @@ function fixtureFetch(
       });
     }
     if (url.pathname.endsWith(`/core/bundles/${bundleUuid}/bitstreams`)) {
+      const page = Number(url.searchParams.get("page") ?? 0);
       return json({
         _embedded: {
-          bitstreams: [
-            {
-              id: bitstreamUuid,
-              uuid: bitstreamUuid,
-              name: filename,
-              bundleName: "TEXT",
-              sizeBytes: new TextEncoder().encode(text).byteLength,
-              type: "bitstream",
-              metadata: {},
-              _links: {
-                self: {
-                  href: `${url.origin}/server/api/core/bitstreams/${bitstreamUuid}`,
-                },
-              },
-            },
-          ],
+          bitstreams:
+            page === textBitstreamPage
+              ? [
+                  {
+                    id: bitstreamUuid,
+                    uuid: bitstreamUuid,
+                    name: filename,
+                    bundleName: "TEXT",
+                    sizeBytes: new TextEncoder().encode(text).byteLength,
+                    type: "bitstream",
+                    metadata: {},
+                    _links: {
+                      self: {
+                        href: `${url.origin}/server/api/core/bitstreams/${bitstreamUuid}`,
+                      },
+                    },
+                  },
+                ]
+              : [],
         },
         _links: { self: { href: url.toString() } },
         page: {
-          number: 0,
+          number: page,
           size: 50,
           totalElements: bitstreamTotalPages,
           totalPages: bitstreamTotalPages,
@@ -218,7 +223,72 @@ describe("content resolution", () => {
 
     expect(result.truncated).toBe(true);
     expect(result.data[0]?.filesTruncated).toBe(true);
-    expect(result.warnings).toContain("Bitstreams in bundle TEXT were capped");
+    expect(result.warnings).toContain(
+      "More files in bundle TEXT are available via bitstream_page",
+    );
+  });
+
+  it("keeps the cold-cache file-detail call budget explicit", async () => {
+    const fetchMock = fixtureFetch();
+    const resolver = new NlaContentResolver(
+      new NlaClient(testConfig().nla, fetchMock),
+    );
+
+    const result = await resolver.listItemFiles(itemUuid);
+
+    expect(result.data[0]?.files).toHaveLength(1);
+    // One bundle page, one bitstream page, then format and access detail.
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("retrieves a requested continuation page for bundle files", async () => {
+    const fetchMock = fixtureFetch("text", 2, "document.txt", "open.access", 1);
+    const resolver = new NlaContentResolver(
+      new NlaClient(testConfig().nla, fetchMock),
+    );
+
+    const result = await resolver.listItemFiles(itemUuid, {
+      bundlePage: 0,
+      bundlePageSize: 10,
+      bitstreamPage: 1,
+      bitstreamPageSize: 10,
+    });
+
+    expect(result.data[0]?.files[0]?.uuid).toBe(bitstreamUuid);
+    expect(result.data[0]?.filesPagination).toMatchObject({
+      page: 1,
+      hasNext: false,
+    });
+    const fileRequest = fetchMock.mock.calls
+      .map(([input]) => requestUrl(input))
+      .find((url) => url.pathname.endsWith(`/bitstreams`));
+    expect(fileRequest?.searchParams.get("page")).toBe("1");
+  });
+
+  it("continues text discovery across bitstream pages", async () => {
+    const fetchMock = fixtureFetch(
+      "later text",
+      2,
+      "document.txt",
+      "open.access",
+      1,
+    );
+    const resolver = new NlaContentResolver(
+      new NlaClient(testConfig().nla, fetchMock),
+    );
+
+    const result = await resolver.getItemText({
+      itemUuid,
+      offsetChars: 0,
+      maxChars: 100,
+    });
+
+    expect(result.data.text).toBe("later text");
+    const bitstreamPages = fetchMock.mock.calls
+      .map(([input]) => requestUrl(input))
+      .filter((url) => url.pathname.endsWith(`/bitstreams`))
+      .map((url) => url.searchParams.get("page"));
+    expect(bitstreamPages).toEqual(["0", "1"]);
   });
 
   it("withholds content links and downloads for restricted bitstreams", async () => {

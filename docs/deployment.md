@@ -45,6 +45,8 @@ Keep `MCP_TRUST_PROXY=false` unless the server is directly behind a trusted reve
 
 The application accepts only an unambiguous `application/json` POST representation, rejects compressed bodies, applies a ten-second body-read deadline, and bounds JSON before parsing at 1 MiB by default. It limits active MCP work globally and per client, bounds rate-limiter identity state, and applies a separate coarse limiter to every HTTP route. The in-process controls are per instance and are not a replacement for proxy connection limits, distributed quotas, or authentication.
 
+Set `NLA_METRICS_MODE=log` when your runtime collects structured stderr JSON. This optional exporter emits content-free counters, gauges, and observations for upstream outcomes, latency, response bytes, retries, cache hits/evictions, active requests, and queue depth. Metric labels contain only bounded status/method/error categories; queries, identifiers, headers, and content are never labels. Leave it at `none` when the extra event volume is not useful.
+
 ## Probe examples
 
 ```bash

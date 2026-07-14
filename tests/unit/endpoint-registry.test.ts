@@ -3,6 +3,7 @@ import { NlaClient } from "../../src/nla/client.js";
 import {
   checkEndpointRegistryDrift,
   concreteEndpointPath,
+  getDefaultEndpointRegistry,
   loadEndpointRegistry,
   normalizeAdvertisedPath,
   summarizeEndpointRegistry,
@@ -20,6 +21,14 @@ function hrefFor(record: EndpointRecord): string {
 }
 
 describe("endpoint registry", () => {
+  it("shares one frozen default registry instance", () => {
+    const first = getDefaultEndpointRegistry();
+    const second = getDefaultEndpointRegistry();
+    expect(second).toBe(first);
+    expect(Object.isFrozen(first)).toBe(true);
+    expect(first.every((record) => Object.isFrozen(record))).toBe(true);
+  });
+
   it("loads one validated record for every known root relation", () => {
     const records = loadEndpointRegistry();
     expect(records).toHaveLength(80);

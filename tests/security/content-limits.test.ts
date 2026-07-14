@@ -69,6 +69,24 @@ describe("content safety boundaries", () => {
     expect(matches).toBe(mimeType === "application/pdf");
   });
 
+  it("normalizes parameters while checking an allowed binary signature", () => {
+    expect(
+      hasExpectedFileSignature(
+        new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+        "image/jpeg;charset=UTF-8",
+      ),
+    ).toBe(true);
+  });
+
+  it("fails closed for an unknown binary MIME type", () => {
+    expect(
+      hasExpectedFileSignature(
+        new Uint8Array([1, 2, 3]),
+        "application/octet-stream",
+      ),
+    ).toBe(false);
+  });
+
   it.each(["text/plain", "image/png", "image/jpeg", "image/gif"])(
     "allows reviewed inline type %s",
     (mimeType) => expect(isInlineMimeTypeAllowed(mimeType)).toBe(true),

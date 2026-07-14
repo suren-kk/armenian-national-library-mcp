@@ -1,13 +1,7 @@
 import { z } from "zod";
 import { NlaError } from "./errors.js";
-import type {
-  AccessStatus,
-  Bitstream,
-  BitstreamFormat,
-  DspaceObject,
-} from "./types.js";
 
-const metadataValueSchema = z
+export const metadataValueSchema = z
   .object({
     value: z.string(),
     language: z.string().nullable(),
@@ -17,15 +11,18 @@ const metadataValueSchema = z
   })
   .passthrough();
 
-const metadataSchema = z.record(z.string(), z.array(metadataValueSchema));
+export const metadataMapSchema = z.record(
+  z.string(),
+  z.array(metadataValueSchema),
+);
 
-const dspaceObjectSchema = z
+export const dspaceObjectSchema = z
   .object({
     id: z.string().optional(),
     uuid: z.string().optional(),
     name: z.string().optional(),
     handle: z.string().nullable().optional(),
-    metadata: metadataSchema.optional(),
+    metadata: metadataMapSchema.optional(),
     type: z.string().min(1),
     inArchive: z.boolean().optional(),
     discoverable: z.boolean().optional(),
@@ -37,14 +34,14 @@ const dspaceObjectSchema = z
     message: "DSpace object omitted its identifier",
   });
 
-const checksumSchema = z
+export const checksumSchema = z
   .object({
     checkSumAlgorithm: z.string().min(1),
     value: z.string().min(1),
   })
   .passthrough();
 
-const bitstreamSchema = dspaceObjectSchema.and(
+export const bitstreamSchema = dspaceObjectSchema.and(
   z
     .object({
       type: z.literal("bitstream"),
@@ -58,7 +55,7 @@ const bitstreamSchema = dspaceObjectSchema.and(
     .passthrough(),
 );
 
-const bitstreamFormatSchema = z
+export const bitstreamFormatSchema = z
   .object({
     id: z.number().int(),
     shortDescription: z.string(),
@@ -71,11 +68,18 @@ const bitstreamFormatSchema = z
   })
   .passthrough();
 
-const accessStatusSchema = z
+export const accessStatusSchema = z
   .object({
     status: z.string().min(1),
     embargoDate: z.string().nullable(),
     type: z.literal("accessStatus"),
+  })
+  .passthrough();
+
+export const searchObjectSchema = z
+  .object({
+    hitHighlights: z.record(z.string(), z.array(z.string())).optional(),
+    _embedded: z.object({ indexableObject: dspaceObjectSchema }),
   })
   .passthrough();
 
@@ -91,12 +95,20 @@ function parse<T>(schema: z.ZodType<T>, value: unknown, label: string): T {
   return result.data;
 }
 
+export type MetadataValue = z.infer<typeof metadataValueSchema>;
+export type MetadataMap = z.infer<typeof metadataMapSchema>;
+export type DspaceObject = z.infer<typeof dspaceObjectSchema>;
+export type Bitstream = z.infer<typeof bitstreamSchema>;
+export type BitstreamFormat = z.infer<typeof bitstreamFormatSchema>;
+export type AccessStatus = z.infer<typeof accessStatusSchema>;
+export type SearchObject = z.infer<typeof searchObjectSchema>;
+
 export function parseDspaceObject(value: unknown): DspaceObject {
-  return parse(dspaceObjectSchema, value, "object") as DspaceObject;
+  return parse(dspaceObjectSchema, value, "object");
 }
 
 export function parseBitstream(value: unknown): Bitstream {
-  return parse(bitstreamSchema, value, "bitstream") as Bitstream;
+  return parse(bitstreamSchema, value, "bitstream");
 }
 
 export function parseBitstreamFormat(value: unknown): BitstreamFormat {
@@ -105,4 +117,8 @@ export function parseBitstreamFormat(value: unknown): BitstreamFormat {
 
 export function parseAccessStatus(value: unknown): AccessStatus {
   return parse(accessStatusSchema, value, "access status");
+}
+
+export function parseSearchObject(value: unknown): SearchObject {
+  return parse(searchObjectSchema, value, "search object");
 }

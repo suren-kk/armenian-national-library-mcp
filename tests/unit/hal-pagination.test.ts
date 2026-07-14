@@ -39,4 +39,18 @@ describe("HAL and pagination", () => {
       ),
     ).toThrow();
   });
+
+  it.each([
+    { number: 0.5, size: 10, totalElements: 1, totalPages: 1 },
+    {
+      number: 0,
+      size: Number.MAX_SAFE_INTEGER + 1,
+      totalElements: 0,
+      totalPages: 0,
+    },
+    { number: 1, size: 10, totalElements: 1, totalPages: 1 },
+    { number: 0, size: 10, totalElements: 1, totalPages: 0 },
+  ])("rejects invalid page metadata %#", (page) => {
+    expect(() => paginationFrom(requireHalDocument({ page }))).toThrow();
+  });
 });

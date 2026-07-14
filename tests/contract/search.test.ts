@@ -64,7 +64,11 @@ describe("search contract", () => {
       dso_type: "item",
       page: 0,
       page_size: 10,
-      filters: [],
+      filters: [
+        { field: "author", value: "One", operator: "equals" },
+        { field: "author", value: "Two", operator: "contains" },
+        { field: "subject", value: "History", operator: "equals" },
+      ],
       include_metadata: true,
     });
 
@@ -80,5 +84,21 @@ describe("search contract", () => {
       ],
       facets: [{ name: "author" }],
     });
+    const requestInput = fetchMock.mock.calls[0]?.[0];
+    expect(requestInput).toBeDefined();
+    const requested = new URL(
+      typeof requestInput === "string"
+        ? requestInput
+        : requestInput instanceof URL
+          ? requestInput.href
+          : requestInput!.url,
+    );
+    expect(requested.searchParams.getAll("f.author")).toEqual([
+      "One,equals",
+      "Two,contains",
+    ]);
+    expect(requested.searchParams.getAll("f.subject")).toEqual([
+      "History,equals",
+    ]);
   });
 });

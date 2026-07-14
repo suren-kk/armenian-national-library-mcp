@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import { Logger } from "../../src/observability/logger.js";
+import type { Metrics } from "../../src/observability/metrics.js";
 import { NlaClient } from "../../src/nla/client.js";
 import { NlaError } from "../../src/nla/errors.js";
 import { requestUrl, testConfig } from "../helpers.js";
 
 describe("NLA HTTP client", () => {
   it("retries retryable responses and then parses JSON", async () => {
+    const sleep = vi.fn(() => Promise.resolve());
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(new Response("busy", { status: 503 }))
@@ -13,10 +16,50 @@ describe("NLA HTTP client", () => {
           headers: { "content-type": "application/hal+json" },
         }),
       );
-    const client = new NlaClient(testConfig().nla, fetchMock);
+    const client = new NlaClient(
+      testConfig().nla,
+      fetchMock,
+      new Logger("test-client"),
+      { random: () => 0, sleep },
+    );
     const result = await client.getJson<{ type: string }>("");
     expect(result.data.type).toBe("root");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledWith(113, expect.any(AbortSignal));
+  });
+
+  it("reports content-free operational metrics", async () => {
+    const increment = vi.fn<Metrics["increment"]>();
+    const observe = vi.fn<Metrics["observe"]>();
+    const set = vi.fn<Metrics["set"]>();
+    const metrics: Metrics = {
+      increment,
+      observe,
+      set,
+    };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('{"ok":true}', {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NlaClient(
+      testConfig().nla,
+      fetchMock,
+      new Logger("test-client"),
+      { metrics },
+    );
+
+    await client.getJson("core/sites");
+
+    expect(increment).toHaveBeenCalledWith("nla_upstream_requests_total", 1, {
+      method: "GET",
+      statusClass: "2xx",
+    });
+    expect(observe).toHaveBeenCalledWith("nla_upstream_response_bytes", 11, {
+      method: "GET",
+      statusClass: "2xx",
+    });
+    expect(JSON.stringify(increment.mock.calls)).not.toMatch(/core\/sites|ok/);
   });
 
   it("uses a fresh cache entry without another request", async () => {
@@ -77,7 +120,7 @@ describe("NLA HTTP client", () => {
   });
 
   it("enforces the active byte limit after a 304 revalidation", async () => {
-    const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    let now = 1_000;
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -92,18 +135,16 @@ describe("NLA HTTP client", () => {
     const client = new NlaClient(
       testConfig({ NLA_CACHE_ENABLED: "true", NLA_CACHE_TTL_MS: "0" }).nla,
       fetchMock,
+      new Logger("test-client"),
+      { now: () => now },
     );
 
-    try {
-      await client.getJson("core/sites", { maxResponseBytes: 1_024 });
-      now.mockReturnValue(1_001);
-      await expect(
-        client.getJson("core/sites", { maxResponseBytes: 4 }),
-      ).rejects.toMatchObject({ code: "NLA_RESPONSE_TOO_LARGE" });
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-    } finally {
-      now.mockRestore();
-    }
+    await client.getJson("core/sites", { maxResponseBytes: 1_024 });
+    now = 1_001;
+    await expect(
+      client.getJson("core/sites", { maxResponseBytes: 4 }),
+    ).rejects.toMatchObject({ code: "NLA_RESPONSE_TOO_LARGE" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("evicts cached bodies to stay within the aggregate byte ceiling", async () => {
@@ -155,6 +196,58 @@ describe("NLA HTTP client", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("coalesces concurrent identical GET requests", async () => {
+    let resolveResponse!: (response: Response) => void;
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    const client = new NlaClient(testConfig().nla, fetchMock);
+
+    const first = client.getJson<{ answer: number }>("core/sites");
+    const second = client.getJson<{ answer: number }>("core/sites");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    resolveResponse(
+      new Response('{"answer":42}', {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    await expect(Promise.all([first, second])).resolves.toMatchObject([
+      { data: { answer: 42 } },
+      { data: { answer: 42 } },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels one coalesced caller without aborting the others", async () => {
+    let resolveResponse!: (response: Response) => void;
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    const client = new NlaClient(testConfig().nla, fetchMock);
+    const controller = new AbortController();
+
+    const first = client.getJson("core/sites", { signal: controller.signal });
+    const second = client.getJson<{ answer: number }>("core/sites");
+    const firstResult = expect(first).rejects.toThrow("caller stopped");
+    controller.abort(new Error("caller stopped"));
+    resolveResponse(
+      new Response('{"answer":42}', {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    await firstResult;
+    await expect(second).resolves.toMatchObject({ data: { answer: 42 } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("maps non-retryable HTTP errors", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
@@ -164,6 +257,35 @@ describe("NLA HTTP client", () => {
       code: "NLA_AUTHENTICATION_REQUIRED",
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["application/jsonp", "text/json", "application/notjson"])(
+    "rejects misleading JSON media type %s",
+    async (contentType) => {
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          new Response("{}", { headers: { "content-type": contentType } }),
+        );
+      const client = new NlaClient(testConfig().nla, fetchMock);
+
+      await expect(client.getJson("core/sites")).rejects.toMatchObject({
+        code: "NLA_INVALID_RESPONSE",
+      });
+    },
+  );
+
+  it("accepts structured JSON media types", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('{"ok":true}', {
+        headers: { "content-type": "application/hal+json; charset=utf-8" },
+      }),
+    );
+    const client = new NlaClient(testConfig().nla, fetchMock);
+
+    await expect(client.getJson("core/sites")).resolves.toMatchObject({
+      data: { ok: true },
+    });
   });
 
   it("enforces response size while streaming", async () => {
@@ -176,5 +298,15 @@ describe("NLA HTTP client", () => {
     await expect(
       client.getJson("core/sites", { maxResponseBytes: 4 }),
     ).rejects.toBeInstanceOf(NlaError);
+  });
+
+  it("rejects an excessive encoded upstream URL before fetch", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const client = new NlaClient(testConfig().nla, fetchMock);
+
+    await expect(
+      client.getJson("core/sites", { query: { query: "x".repeat(9_000) } }),
+    ).rejects.toMatchObject({ code: "NLA_INVALID_RESPONSE" });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

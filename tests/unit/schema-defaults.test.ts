@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { itemTextInput, searchCatalogInput } from "../../src/schemas/inputs.js";
+import {
+  itemTextInput,
+  searchCatalogInput,
+  searchFacetsInput,
+} from "../../src/schemas/inputs.js";
 
 describe("agent-friendly input defaults", () => {
   it("keeps discovery output compact unless raw metadata is requested", () => {
@@ -15,5 +19,22 @@ describe("agent-friendly input defaults", () => {
   it("reads text in bounded chunks by default", () => {
     const value = itemTextInput.parse({ item_id: "123456789/10740" });
     expect(value).toMatchObject({ offset_chars: 0, max_chars: 8_000 });
+  });
+
+  it("validates domain sort, facet, and filter syntax", () => {
+    expect(
+      searchCatalogInput.safeParse({
+        query: "Armenia",
+        sort: "dc.title,DESC",
+        filters: [{ field: "dc.contributor.author", value: "One" }],
+      }).success,
+    ).toBe(true);
+    expect(
+      searchCatalogInput.safeParse({ query: "Armenia", sort: "drop table" })
+        .success,
+    ).toBe(false);
+    expect(
+      searchFacetsInput.safeParse({ facet: "author?redirect" }).success,
+    ).toBe(false);
   });
 });
