@@ -1,0 +1,44 @@
+{
+  "name": "@nla-am/nla-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Provider-neutral MCP server for the National Library of Armenia DSpace repository",
+  "type": "module",
+  "bin": {
+    "nla-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "ci": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.1.1",
+    "eslint": "10.7.0",
+    "prettier": "3.9.5",
+    "tsx": "4.20.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.64.0",
+    "vitest": "4.1.10"
+  }
+}

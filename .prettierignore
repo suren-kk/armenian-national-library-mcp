@@ -1,0 +1,4 @@
+dist/
+coverage/
+node_modules/
+IMPLEMENTATION_PLAN.md
