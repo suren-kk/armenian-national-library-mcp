@@ -59,6 +59,7 @@ describe("provider client compatibility", () => {
     expect(codex.health).toMatchObject({
       status: "ok",
       profile: "public-read",
+      projectStatus: "independent-unofficial-research",
       transport: "stdio",
     });
   });

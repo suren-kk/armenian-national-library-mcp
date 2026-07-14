@@ -51,7 +51,7 @@ export interface ItemTextData {
     derivedLocally: false;
     untrustedSourceData: true;
   };
-  resourceLink: ResolvedBitstream["resourceLink"];
+  resourceLink: NonNullable<ResolvedBitstream["resourceLink"]>;
   downloadUrl: string;
 }
 
@@ -252,7 +252,20 @@ export class NlaContentResolver {
     uuid: string,
     signal?: AbortSignal,
   ): Promise<Envelope<ResolvedBitstream>> {
-    return this.getBitstream(uuid, signal);
+    const result = await this.getBitstream(uuid, signal);
+    if (!result.data.access.publiclyReadable) {
+      throw new NlaError(
+        "NLA_ACCESS_RESTRICTED",
+        "The selected bitstream is restricted",
+        { accessStatus: result.data.access.status },
+      );
+    }
+    if (!result.data.downloadUrl || !result.data.resourceLink) {
+      throw NlaError.invalidResponse(
+        "A public bitstream did not produce safe content links",
+      );
+    }
+    return result;
   }
 
   async getItemText(
@@ -296,6 +309,11 @@ export class NlaContentResolver {
         {
           accessStatus: selected.access.status,
         },
+      );
+    }
+    if (!selected.resourceLink || !selected.downloadUrl) {
+      throw NlaError.invalidResponse(
+        "A public text bitstream did not produce safe content links",
       );
     }
     const content = await this.client.getBytes(
@@ -427,7 +445,10 @@ export class NlaContentResolver {
     format: BitstreamFormat,
     access: AccessStatus,
   ): ResolvedBitstream {
-    const downloadUrl = `${this.client.config.apiBaseUrl}/core/bitstreams/${bitstream.uuid}/content`;
+    const publiclyReadable = access.status === "open.access";
+    const downloadUrl = publiclyReadable
+      ? `${this.client.config.apiBaseUrl}/core/bitstreams/${bitstream.uuid}/content`
+      : null;
     return {
       uuid: bitstream.uuid,
       filename: bitstream.name,
@@ -444,18 +465,20 @@ export class NlaContentResolver {
       access: {
         status: access.status,
         embargoDate: access.embargoDate,
-        publiclyReadable: access.status === "open.access",
+        publiclyReadable,
       },
       checksum: bitstream.checkSum ?? null,
       metadata: bitstream.metadata ?? {},
-      resourceLink: {
-        type: "resource_link",
-        uri: `nla://bitstream/${bitstream.uuid}/content`,
-        name: bitstream.name,
-        description: `NLA ${classifyBundle(bitstream.bundleName)} bitstream content`,
-        mimeType: format.mimetype,
-        size: bitstream.sizeBytes,
-      },
+      resourceLink: publiclyReadable
+        ? {
+            type: "resource_link",
+            uri: `nla://bitstream/${bitstream.uuid}/content`,
+            name: bitstream.name,
+            description: `NLA ${classifyBundle(bitstream.bundleName)} bitstream content`,
+            mimeType: format.mimetype,
+            size: bitstream.sizeBytes,
+          }
+        : null,
       metadataResource: `nla://bitstream/${bitstream.uuid}`,
       downloadUrl,
     };

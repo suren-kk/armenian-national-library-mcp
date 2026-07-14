@@ -1,6 +1,9 @@
-# National Library of Armenia MCP
+# National Library of Armenia MCP Server (unofficial)
 
-A provider-neutral, read-only Model Context Protocol server for the National Library of Armenia's DSpace 9 repository.
+An independent, provider-neutral, read-only research MCP integration for the National Library of Armenia's public DSpace 9 repository.
+
+> [!IMPORTANT]
+> This is an unofficial project by Suren Karapetyan. It is not affiliated with, endorsed by, sponsored by, or operated by the National Library of Armenia. The NLA name identifies the interoperated public repository only. The MIT License covers this project's software—not NLA metadata, extracted text, scans, publications, or other third-party material. See [Data and Content Rights](DATA_AND_CONTENT_RIGHTS.md) before using repository content.
 
 The current implementation includes:
 
@@ -21,12 +24,12 @@ Local extraction/OCR remains outside the current server scope.
 
 ## Install and connect a client
 
-The npm distribution runs the stdio MCP server through `npx`; no provider-specific server build is needed. If the first tagged release is not yet available in the registry, use the source setup below.
+Public npm publication is intentionally disabled until the maintainer's personal npm scope and canonical GitHub URL are configured. Use the source setup below for now. The future package name will be `@YOUR_NPM_USERNAME/nla-research-mcp`; `YOUR_NPM_USERNAME` is a placeholder, not an installable package.
 
 Add it to Codex:
 
 ```bash
-codex mcp add nla -- npx -y @nla-am/nla-mcp@1
+codex mcp add nla -- npx -y @YOUR_NPM_USERNAME/nla-research-mcp
 ```
 
 Equivalent Codex configuration:
@@ -34,7 +37,7 @@ Equivalent Codex configuration:
 ```toml
 [mcp_servers.nla]
 command = "npx"
-args = ["-y", "@nla-am/nla-mcp@1"]
+args = ["-y", "@YOUR_NPM_USERNAME/nla-research-mcp"]
 startup_timeout_sec = 20
 tool_timeout_sec = 60
 ```
@@ -43,14 +46,14 @@ Add the same package to Claude Code:
 
 ```bash
 claude mcp add --transport stdio nla -- \
-  npx -y @nla-am/nla-mcp@1
+  npx -y @YOUR_NPM_USERNAME/nla-research-mcp
 ```
 
 Restart or reconnect the client after adding the server. A new-user smoke flow is:
 
 1. Search for an NLA record with `search_catalog`.
 2. Pass its item identifier to `get_item_text` and follow `nextOffsetChars` when the text is chunked.
-3. Call `list_item_files` or `get_file_download` and open the canonical HTTPS download URL for the original document.
+3. Review the record's rights and access fields. When access is public and your intended use is permitted, call `list_item_files` or `get_file_download` to obtain the canonical NLA URL.
 
 Codex and Claude use the same binary, schemas, security policy, and NLA data. Only their client configuration commands differ.
 
@@ -86,11 +89,11 @@ After building, a local Codex/Claude-style stdio configuration can invoke:
 ```json
 {
   "command": "node",
-  "args": ["/absolute/path/to/nla-mcp/dist/index.js"]
+  "args": ["/absolute/path/to/nla-research-mcp/dist/index.js"]
 }
 ```
 
-For package consumers, the CLI binary is `nla-mcp`; a global installation can invoke it directly.
+For future package consumers, the CLI binary is `nla-research-mcp`; a global installation can invoke it directly after publication is enabled.
 
 A remote MCP client can connect to:
 
@@ -116,6 +119,8 @@ Terminate TLS at a trusted reverse proxy in production and explicitly set `MCP_A
 Identifiers accept a DSpace UUID, a handle such as `123456789/10740`, or a canonical `https://dspace.nla.am/handle/...` URL. Arbitrary URLs are rejected.
 
 Every successful catalogue tool result uses a consistent envelope with `data`, `pagination`, `source`, `warnings`, and `truncated`. Upstream catalogue content is preserved as data, stripped of terminal control characters, and never included in server instructions.
+
+Normalized item metadata preserves source-declared rights statements, rights URIs, rightsholders, access-rights fields, and licence fields when present. `rights.status: "unknown"` means no supported declaration was found. `rights.reusable` is always `null`: this software reports source evidence but does not decide that reuse is permitted. Technical public access and content reuse are separate questions.
 
 Content resource templates are:
 
@@ -195,6 +200,14 @@ HTTP deployments also require explicit Host and Origin allowlists. Requests with
 ## Releases and support
 
 - [Changelog](CHANGELOG.md)
+- [MIT software licence](LICENSE)
+- [Unofficial status and notices](NOTICE)
+- [Data and content rights](DATA_AND_CONTENT_RIGHTS.md)
+- [Privacy notice](PRIVACY.md)
+- [Rights, takedown, and correction requests](TAKEDOWN.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
+- [Contributing and provenance requirements](CONTRIBUTING.md)
+- [Legal, privacy, and rights incident runbook](docs/legal-incident-response.md)
 - [Release and artifact verification guide](docs/releasing.md)
 - [Support and upstream outage runbook](docs/support.md)
 - [Security reporting policy](SECURITY.md)

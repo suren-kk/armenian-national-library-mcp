@@ -52,7 +52,7 @@ describe.skipIf(!live)("live NLA smoke tests", () => {
       resourceLink: { type: "resource_link" },
     });
     expect(original?.downloadUrl).toContain("/core/bitstreams/");
-    expect(original?.downloadUrl.endsWith("/content")).toBe(true);
+    expect(original?.downloadUrl?.endsWith("/content")).toBe(true);
   });
 
   it("matches the live endpoint root and supports a controlled raw read", async () => {

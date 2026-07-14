@@ -22,6 +22,7 @@ function fixtureFetch(
   text = "A😀ԲC\u001b[31m",
   bitstreamTotalPages = 1,
   filename = "document.pdf.txt",
+  accessStatus = "open.access",
 ) {
   // Async keeps this test double assignable to the platform fetch signature.
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -65,6 +66,18 @@ function fixtureFetch(
         },
       });
     }
+    if (url.pathname.endsWith(`/core/bitstreams/${bitstreamUuid}`)) {
+      return json({
+        id: bitstreamUuid,
+        uuid: bitstreamUuid,
+        name: filename,
+        bundleName: "TEXT",
+        sizeBytes: new TextEncoder().encode(text).byteLength,
+        type: "bitstream",
+        metadata: {},
+        _links: { self: { href: url.toString() } },
+      });
+    }
     if (url.pathname.endsWith(`/core/bitstreams/${bitstreamUuid}/format`)) {
       return json({
         id: 6,
@@ -81,7 +94,7 @@ function fixtureFetch(
       url.pathname.endsWith(`/core/bitstreams/${bitstreamUuid}/accessStatus`)
     ) {
       return json({
-        status: "open.access",
+        status: accessStatus,
         embargoDate: null,
         type: "accessStatus",
       });
@@ -206,6 +219,28 @@ describe("content resolution", () => {
     expect(result.truncated).toBe(true);
     expect(result.data[0]?.filesTruncated).toBe(true);
     expect(result.warnings).toContain("Bitstreams in bundle TEXT were capped");
+  });
+
+  it("withholds content links and downloads for restricted bitstreams", async () => {
+    const resolver = new NlaContentResolver(
+      new NlaClient(
+        testConfig().nla,
+        fixtureFetch("restricted", 1, "document.txt", "restricted"),
+      ),
+    );
+
+    const files = await resolver.listItemFiles(itemUuid);
+    expect(files.data[0]?.files[0]).toMatchObject({
+      access: { publiclyReadable: false },
+      resourceLink: null,
+      downloadUrl: null,
+    });
+    await expect(resolver.getFileDownload(bitstreamUuid)).rejects.toMatchObject(
+      { code: "NLA_ACCESS_RESTRICTED" },
+    );
+    await expect(
+      resolver.getItemText({ itemUuid, offsetChars: 0, maxChars: 10 }),
+    ).rejects.toMatchObject({ code: "NLA_ACCESS_RESTRICTED" });
   });
 
   it("rejects oversized binary resources before downloading content", async () => {

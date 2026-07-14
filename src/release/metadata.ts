@@ -8,6 +8,10 @@ export interface ReleaseMetadataInput {
 }
 
 const stableSemver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const publicPackageName = /^@[a-z0-9][a-z0-9._-]*\/nla-research-mcp$/;
+const provisionalPackageName = "nla-research-mcp";
+const expectedDescription =
+  "Independent, unofficial research MCP integration for the National Library of Armenia public DSpace repository";
 
 function objectValue(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -32,8 +36,25 @@ export function releaseMetadataIssues({
     issues.push("package.json version must be a stable semantic version");
     return issues;
   }
-  if (packageManifest.name !== "@nla-am/nla-mcp") {
-    issues.push("package.json name must be @nla-am/nla-mcp");
+  if (
+    packageManifest.private === true &&
+    packageManifest.name !== provisionalPackageName
+  ) {
+    issues.push(`private package.json name must be ${provisionalPackageName}`);
+  }
+  if (
+    packageManifest.private !== true &&
+    (typeof packageManifest.name !== "string" ||
+      !publicPackageName.test(packageManifest.name))
+  ) {
+    issues.push(
+      "public package.json name must use a personal scope: @<scope>/nla-research-mcp",
+    );
+  }
+  if (packageManifest.description !== expectedDescription) {
+    issues.push(
+      "package.json description must identify the project as independent and unofficial",
+    );
   }
   if (version !== SERVER_VERSION) {
     issues.push(
@@ -57,21 +78,58 @@ export function releaseMetadataIssues({
       "package-lock.json root package name does not match package.json",
     );
   }
-  if (packageManifest.private === true) {
-    issues.push("package.json must not be private for a public release");
+  if (expectedTag !== undefined && packageManifest.private === true) {
+    issues.push(
+      "package.json must not be private for a public release; configure the personal npm scope first",
+    );
   }
   if (packageManifest.license !== "MIT") {
     issues.push("package.json license must match LICENSE (MIT)");
   }
-  const publishConfig = objectValue(packageManifest.publishConfig);
-  if (publishConfig?.access !== "public") {
+  const author = objectValue(packageManifest.author);
+  if (
+    author?.name !== "Suren Karapetyan" ||
+    author.email !== "surenakar@gmail.com"
+  ) {
     issues.push(
-      "publishConfig.access must be public for the scoped npm package",
+      "package.json author and legal contact must identify Suren Karapetyan",
     );
   }
+  const publishConfig = objectValue(packageManifest.publishConfig);
+  if (packageManifest.private !== true && publishConfig?.access !== "public") {
+    issues.push(
+      "publishConfig.access must be public when publication is enabled",
+    );
+  }
+  if (packageManifest.private !== true) {
+    const repository = objectValue(packageManifest.repository);
+    const bugs = objectValue(packageManifest.bugs);
+    if (
+      repository?.type !== "git" ||
+      typeof repository.url !== "string" ||
+      !repository.url.includes("github.com/")
+    ) {
+      issues.push(
+        "public package.json must declare the canonical GitHub repository",
+      );
+    }
+    if (
+      typeof packageManifest.homepage !== "string" ||
+      !packageManifest.homepage.includes("github.com/")
+    ) {
+      issues.push(
+        "public package.json must declare the canonical GitHub homepage",
+      );
+    }
+    if (typeof bugs?.url !== "string" || !bugs.url.includes("github.com/")) {
+      issues.push(
+        "public package.json must declare the canonical GitHub issue URL",
+      );
+    }
+  }
   const bin = objectValue(packageManifest.bin);
-  if (bin?.["nla-mcp"] !== "dist/index.js") {
-    issues.push("package.json must publish the nla-mcp CLI binary");
+  if (bin?.["nla-research-mcp"] !== "dist/index.js") {
+    issues.push("package.json must expose the nla-research-mcp CLI binary");
   }
   const publishedFiles = Array.isArray(packageManifest.files)
     ? new Set(packageManifest.files)
@@ -83,7 +141,13 @@ export function releaseMetadataIssues({
     "evals",
     "README.md",
     "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "DATA_AND_CONTENT_RIGHTS.md",
+    "PRIVACY.md",
     "SECURITY.md",
+    "TAKEDOWN.md",
+    "THIRD_PARTY_NOTICES.md",
+    "NOTICE",
     "LICENSE",
   ]) {
     if (!publishedFiles.has(requiredFile)) {

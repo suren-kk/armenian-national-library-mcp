@@ -36,6 +36,24 @@ describe("metadata normalization", () => {
             place: 0,
           },
         ],
+        "dc.rights": [
+          {
+            value: "All rights reserved",
+            language: "en",
+            authority: null,
+            confidence: -1,
+            place: 0,
+          },
+        ],
+        "dc.rights.uri": [
+          {
+            value: "https://rights.example/statement",
+            language: null,
+            authority: null,
+            confidence: -1,
+            place: 0,
+          },
+        ],
       },
       inArchive: true,
       discoverable: true,
@@ -54,5 +72,29 @@ describe("metadata normalization", () => {
     expect(result.normalized.canonicalUrl).toBe(
       "https://dspace.nla.am/handle/123456789/10740",
     );
+    expect(result.normalized.rights).toMatchObject({
+      status: "declared",
+      reusable: null,
+      statements: [{ value: "All rights reserved" }],
+      uris: [{ value: "https://rights.example/statement" }],
+    });
+  });
+
+  it("marks absent rights metadata as unknown without inferring reuse", () => {
+    const object: DspaceObject = {
+      uuid: "fdff35c4-2c16-481c-9bc8-fee00be21121",
+      type: "item",
+      metadata: {},
+    };
+
+    expect(normalizeDspaceObject(object).normalized.rights).toEqual({
+      status: "unknown",
+      statements: [],
+      uris: [],
+      holders: [],
+      accessRights: [],
+      licences: [],
+      reusable: null,
+    });
   });
 });

@@ -322,7 +322,7 @@ export function createHttpApplication(
         jsonResponse(
           response,
           200,
-          { status: "ok", service: "nla-mcp" },
+          { status: "ok", service: "nla-research-mcp" },
           headOnly,
         );
         return;

@@ -1,11 +1,16 @@
 {
-  "name": "@nla-am/nla-mcp",
+  "name": "nla-research-mcp",
   "version": "1.0.0",
-  "description": "Provider-neutral MCP server for the National Library of Armenia DSpace repository",
+  "description": "Independent, unofficial research MCP integration for the National Library of Armenia public DSpace repository",
+  "private": true,
+  "author": {
+    "name": "Suren Karapetyan",
+    "email": "surenakar@gmail.com"
+  },
   "license": "MIT",
   "type": "module",
   "bin": {
-    "nla-mcp": "dist/index.js"
+    "nla-research-mcp": "dist/index.js"
   },
   "files": [
     "dist",
@@ -14,12 +19,15 @@
     "evals",
     "README.md",
     "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "DATA_AND_CONTENT_RIGHTS.md",
+    "PRIVACY.md",
     "SECURITY.md",
+    "TAKEDOWN.md",
+    "THIRD_PARTY_NOTICES.md",
+    "NOTICE",
     "LICENSE"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "engines": {
     "node": ">=24"
   },

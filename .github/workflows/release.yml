@@ -80,7 +80,11 @@ jobs:
         run: |
           PACKAGE_NAME="$(node --input-type=module -e "import manifest from './package.json' with { type: 'json' }; process.stdout.write(manifest.name)")"
           VERSION="${RELEASE_TAG#v}"
-          TARBALL="release/nla-am-nla-mcp-${VERSION}.tgz"
+          TARBALL="$(find release -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          if [ -z "${TARBALL}" ]; then
+            echo "Release npm tarball was not found" >&2
+            exit 1
+          fi
           LOCAL_INTEGRITY="$(node --input-type=module -e "import { createHash } from 'node:crypto'; import { readFileSync } from 'node:fs'; process.stdout.write('sha512-' + createHash('sha512').update(readFileSync(process.argv[1])).digest('base64'))" "${TARBALL}")"
 
           if PUBLISHED_INTEGRITY="$(npm view "${PACKAGE_NAME}@${VERSION}" dist.integrity 2>/tmp/npm-view-error.log)"; then
@@ -108,11 +112,11 @@ jobs:
         run: |
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             gh release upload "${RELEASE_TAG}" release/* --clobber
-            gh release edit "${RELEASE_TAG}" --title "nla-mcp ${RELEASE_TAG}"
+            gh release edit "${RELEASE_TAG}" --title "nla-research-mcp ${RELEASE_TAG}"
           else
             gh release create "${RELEASE_TAG}" \
               release/* \
               --verify-tag \
               --generate-notes \
-              --title "nla-mcp ${RELEASE_TAG}"
+              --title "nla-research-mcp ${RELEASE_TAG}"
           fi

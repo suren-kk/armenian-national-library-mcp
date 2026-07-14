@@ -22,7 +22,7 @@ describe("MCP protocol", () => {
     ]);
 
     expect(client.getServerVersion()).toEqual({
-      name: "nla-mcp",
+      name: "nla-research-mcp",
       version: "1.0.0",
     });
 
@@ -43,6 +43,8 @@ describe("MCP protocol", () => {
     expect(result.structuredContent).toMatchObject({
       status: "ok",
       profile: "public-read",
+      projectStatus: "independent-unofficial-research",
+      maintainer: "Suren Karapetyan",
     });
     expect(result.isError).not.toBe(true);
 

@@ -105,9 +105,19 @@ export interface ResolvedBitstream {
     description: string;
     mimeType: string;
     size: number;
-  };
+  } | null;
   metadataResource: string;
-  downloadUrl: string;
+  downloadUrl: string | null;
+}
+
+export interface NormalizedRights {
+  status: "declared" | "unknown";
+  statements: MetadataValue[];
+  uris: MetadataValue[];
+  holders: MetadataValue[];
+  accessRights: MetadataValue[];
+  licences: MetadataValue[];
+  reusable: null;
 }
 
 export interface NormalizedMetadata {
@@ -126,6 +136,7 @@ export interface NormalizedMetadata {
   documentType: MetadataValue[];
   pages: MetadataValue[];
   identifiers: MetadataValue[];
+  rights: NormalizedRights;
   canonicalUrl: string;
   lastModified: string | null;
   inArchive: boolean | null;

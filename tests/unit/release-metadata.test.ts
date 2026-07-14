@@ -4,11 +4,14 @@ import { releaseMetadataIssues } from "../../src/release/metadata.js";
 function validInput() {
   return {
     packageManifest: {
-      name: "@nla-am/nla-mcp",
+      name: "nla-research-mcp",
       version: "1.0.0",
+      private: true,
+      description:
+        "Independent, unofficial research MCP integration for the National Library of Armenia public DSpace repository",
+      author: { name: "Suren Karapetyan", email: "surenakar@gmail.com" },
       license: "MIT",
-      publishConfig: { access: "public" },
-      bin: { "nla-mcp": "dist/index.js" },
+      bin: { "nla-research-mcp": "dist/index.js" },
       files: [
         "dist",
         "config",
@@ -16,15 +19,21 @@ function validInput() {
         "evals",
         "README.md",
         "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "DATA_AND_CONTENT_RIGHTS.md",
+        "PRIVACY.md",
         "SECURITY.md",
+        "TAKEDOWN.md",
+        "THIRD_PARTY_NOTICES.md",
+        "NOTICE",
         "LICENSE",
       ],
     },
     lockManifest: {
-      name: "@nla-am/nla-mcp",
+      name: "nla-research-mcp",
       version: "1.0.0",
       packages: {
-        "": { name: "@nla-am/nla-mcp", version: "1.0.0" },
+        "": { name: "nla-research-mcp", version: "1.0.0" },
       },
     },
     changelog: "# Changelog\n\n## [1.0.0] - 2026-07-14\n",
@@ -36,7 +45,7 @@ describe("release metadata", () => {
     expect(releaseMetadataIssues(validInput())).toEqual([]);
   });
 
-  it("rejects mismatched tags and private packages", () => {
+  it("rejects mismatched tags and private release attempts", () => {
     const input = validInput();
     expect(
       releaseMetadataIssues({
@@ -46,7 +55,7 @@ describe("release metadata", () => {
       }),
     ).toEqual(
       expect.arrayContaining([
-        "package.json must not be private for a public release",
+        "package.json must not be private for a public release; configure the personal npm scope first",
         "release tag v1.0.1 does not match package version v1.0.0",
       ]),
     );
@@ -65,11 +74,45 @@ describe("release metadata", () => {
       }),
     ).toEqual(
       expect.arrayContaining([
-        "package.json name must be @nla-am/nla-mcp",
+        "private package.json name must be nla-research-mcp",
         "package.json files must include README.md",
         "package.json files must include CHANGELOG.md",
+        "package.json files must include CONTRIBUTING.md",
         "package.json files must include SECURITY.md",
       ]),
     );
+  });
+
+  it("accepts a publication-ready personal scope and canonical metadata", () => {
+    const input = validInput();
+    expect(
+      releaseMetadataIssues({
+        ...input,
+        packageManifest: {
+          ...input.packageManifest,
+          name: "@researcher/nla-research-mcp",
+          private: false,
+          publishConfig: { access: "public" },
+          repository: {
+            type: "git",
+            url: "git+https://github.com/researcher/nla-research-mcp.git",
+          },
+          homepage: "https://github.com/researcher/nla-research-mcp#readme",
+          bugs: {
+            url: "https://github.com/researcher/nla-research-mcp/issues",
+          },
+        },
+        lockManifest: {
+          ...input.lockManifest,
+          name: "@researcher/nla-research-mcp",
+          packages: {
+            "": {
+              name: "@researcher/nla-research-mcp",
+              version: "1.0.0",
+            },
+          },
+        },
+      }),
+    ).toEqual([]);
   });
 });

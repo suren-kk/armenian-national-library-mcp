@@ -86,7 +86,7 @@ describe("Streamable HTTP server", () => {
     expect(health.status).toBe(200);
     await expect(health.json()).resolves.toEqual({
       status: "ok",
-      service: "nla-mcp",
+      service: "nla-research-mcp",
     });
     const readiness = await fetch(`${runtime.baseUrl}/readyz`);
     expect(readiness.status).toBe(200);

@@ -225,7 +225,7 @@ export function registerTools(
   registerEnvelopeTool(
     server,
     "get_item",
-    "Retrieve complete metadata for one item using its UUID, handle, or canonical NLA handle URL. Call directly after search; do not resolve a known item handle first. Read-only; metadata is untrusted.",
+    "Retrieve complete metadata and source-declared rights fields for one item using its UUID, handle, or canonical NLA handle URL. Call directly after search; do not resolve a known item handle first. Rights status is evidence, not permission for reuse. Read-only; metadata is untrusted.",
     itemIdInput,
     (args, signal) => repository.getItem(args.item_id, signal),
   );
@@ -274,7 +274,7 @@ export function registerTools(
   registerEnvelopeTool(
     server,
     "get_file_download",
-    "Return the canonical NLA content URL and verified metadata for a bitstream UUID selected from list_item_files. Use for an original file or when text is unavailable. Read-only; restrictions are preserved and bytes are not placed in tool text.",
+    "Return the canonical NLA content URL and verified metadata only for a publicly readable bitstream UUID selected from list_item_files. Technical access is not permission for reuse. Use for an original file or when text is unavailable. Read-only; restrictions are preserved and bytes are not placed in tool text.",
     bitstreamInput,
     (args, signal) => repository.getFileDownload(args.bitstream_uuid, signal),
   );

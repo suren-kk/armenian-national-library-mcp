@@ -2,6 +2,8 @@
 
 The remote profile uses stateless MCP Streamable HTTP at `/mcp`. It does not implement the deprecated standalone SSE transport, server-side sessions, resumability, or authentication. Liveness is available at `/healthz`; readiness at `/readyz` verifies the NLA API root and caches the result for five seconds.
 
+The project maintainer does not operate a public hosted endpoint. Anyone exposing this profile to other people becomes responsible for that deployment's terms, privacy notice, lawful basis, retention, processors, security, user-rights handling, and rights/takedown response. Start with the data flow and operator requirements in [PRIVACY.md](../PRIVACY.md) and [DATA_AND_CONTENT_RIGHTS.md](../DATA_AND_CONTENT_RIGHTS.md).
+
 ## Local configuration
 
 Build the server, select HTTP transport, and keep the default loopback binding:

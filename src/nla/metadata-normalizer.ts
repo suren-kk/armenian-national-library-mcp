@@ -20,6 +20,13 @@ export function normalizeMetadata(object: DspaceObject): NormalizedMetadata {
   const uuid = object.uuid ?? object.id;
   if (!uuid)
     throw new Error("Cannot normalize a DSpace object without a UUID or ID");
+  const rights = {
+    statements: values(metadata, "dc.rights"),
+    uris: values(metadata, "dc.rights.uri"),
+    holders: values(metadata, "dc.rights.holder"),
+    accessRights: values(metadata, "dc.rights.accessRights"),
+    licences: values(metadata, "dc.rights.license", "dc.rights.licenseUrl"),
+  };
   return {
     uuid,
     handle: object.handle ?? null,
@@ -55,6 +62,15 @@ export function normalizeMetadata(object: DspaceObject): NormalizedMetadata {
       "dc.identifier.uri",
       "dc.identifier.other",
     ),
+    rights: {
+      status: Object.values(rights).some((entries) => entries.length > 0)
+        ? "declared"
+        : "unknown",
+      ...rights,
+      // Source declarations are evidence, not a project determination that
+      // downstream reuse is permitted.
+      reusable: null,
+    },
     canonicalUrl: object.handle
       ? `https://dspace.nla.am/handle/${object.handle}`
       : `https://api.nla.am/server/api/${object.type === "item" ? "core/items" : `dso/find?uuid=`}${uuid}`,

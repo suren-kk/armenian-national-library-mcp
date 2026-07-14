@@ -1,8 +1,8 @@
 services:
-  nla-mcp:
+  nla-research-mcp:
     build:
       context: .
-    image: nla-mcp:local
+    image: nla-research-mcp:local
     init: true
     user: "1000:1000"
     read_only: true

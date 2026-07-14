@@ -1,14 +1,15 @@
 # Release guide
 
-Releases use stable semantic versions and publish the same provider-neutral server through npm, a container image, and a checksummed source release. The automation targets GitHub Actions, npm, GitHub Container Registry, and GitHub Releases.
+Releases will use stable semantic versions and publish the same independent, unofficial server through npm, a container image, and a checksummed source release. Publication is currently blocked by `package.json#private` until the maintainer configures a personal npm scope and canonical public GitHub repository and resolves the API/content authority gate described in [DATA_AND_CONTENT_RIGHTS.md](../DATA_AND_CONTENT_RIGHTS.md). Do not remove that guard merely to test the workflow.
 
 ## One-time repository setup
 
-1. Configure this checkout with the intended GitHub remote and enable Actions and GitHub Packages.
-2. Confirm that the release owner controls the `@nla-am` npm scope and that the package name is correct.
-3. Add an npm automation token with publish access as the `NPM_TOKEN` Actions secret. Protect the release environment and require maintainer approval if the repository policy supports it.
-4. Enable GitHub private vulnerability reporting and set the repository issue/support contacts.
-5. Keep the default `GITHUB_TOKEN` package and release permissions available to the tag workflow.
+1. Configure this checkout with Suren Karapetyan's intended public GitHub remote and enable Actions and GitHub Packages.
+2. Replace the provisional `nla-research-mcp` package name with `@<personal-npm-scope>/nla-research-mcp`; add exact `repository`, `homepage`, and `bugs` metadata; synchronize the lockfile and release tests.
+3. Perform the first public package creation interactively with npm 2FA. Then configure npm Trusted Publishing for the exact GitHub user, `nla-research-mcp` repository, and `release.yml` workflow.
+4. Remove the workflow's `NPM_TOKEN` fallback after Trusted Publishing succeeds. Keep `id-token: write`, use GitHub-hosted runners, and configure a protected release environment when available.
+5. Enable GitHub private vulnerability reporting and set the public support, privacy, security, and rights contacts to the policies in this repository.
+6. Keep the default `GITHUB_TOKEN` package and release permissions available to the tag workflow.
 
 The workflow derives its image destination from the repository name: `ghcr.io/<owner>/<repository>`. No registry, repository, or hosted MCP destination is hard-coded in application behavior.
 
@@ -18,7 +19,7 @@ The workflow derives its image destination from the repository name: `ghcr.io/<o
 - Minor: backward-compatible tools, optional fields, and capabilities.
 - Major: removed/renamed tools, changed required inputs, incompatible output/schema changes, or raised runtime requirements that break supported installations.
 
-Before tagging, update `package.json`, the root versions in `package-lock.json`, `src/version.ts`, and `CHANGELOG.md`. The release check rejects mismatches, non-stable versions, and a tag that is not exactly `v<version>`.
+Before tagging, update `package.json`, the root versions in `package-lock.json`, `src/version.ts`, and `CHANGELOG.md`. Remove `private: true` only after the personal scope and trusted publisher are ready and qualified review has approved the intended NLA API/data/content surface; then set `publishConfig.access` to `public`. The release check rejects a private tag build, mismatches, non-stable versions, and a tag that is not exactly `v<version>`.
 
 ## Prepare and publish
 
@@ -56,8 +57,8 @@ Publishing is intentionally not available from an arbitrary untagged branch. Nev
 From a clean machine with Node.js 24 or newer:
 
 ```bash
-npm view @nla-am/nla-mcp@1.0.0 version dist.integrity
-npx -y @nla-am/nla-mcp@1.0.0
+npm view @YOUR_NPM_USERNAME/nla-research-mcp@<version> version dist.integrity
+npx -y @YOUR_NPM_USERNAME/nla-research-mcp@<version>
 ```
 
 Verify `release/SHA256SUMS` against downloaded release assets, inspect the image's OCI `version`, `revision`, and `source` labels, and run the new-user flow in [README.md](../README.md) with both Codex and Claude before announcing the release.

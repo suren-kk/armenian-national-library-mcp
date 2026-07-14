@@ -6,7 +6,7 @@ This project supports the public, read-only NLA DSpace API through the documente
 
 When requesting support, provide the MCP version, transport, client name/version, UTC timestamp, tool name, sanitized error code/message, and a minimal identifier or query that reproduces the problem. Include request IDs and redacted stderr logs when available. Never attach credentials, cookies, authorization headers, full document text, or file bytes.
 
-Use the repository issue tracker for reproducible non-sensitive defects and feature requests. Use private vulnerability reporting for security issues as described in [SECURITY.md](../SECURITY.md).
+Use the repository issue tracker for reproducible non-sensitive defects and feature requests after the canonical GitHub repository is published. Until then, contact Suren Karapetyan at `surenakar@gmail.com`. Use private vulnerability reporting for security issues as described in [SECURITY.md](../SECURITY.md), [PRIVACY.md](../PRIVACY.md) for privacy concerns, and [TAKEDOWN.md](../TAKEDOWN.md) for rights or correction requests.
 
 ## Identify an upstream outage
 
