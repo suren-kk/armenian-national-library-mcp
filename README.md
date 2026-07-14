@@ -10,8 +10,9 @@ The current implementation includes:
 - Bundle classification, verified bitstream metadata/download links, bounded NLA-provided text extraction, and `nla://` text/small-binary resources.
 - A validated catalogue of every API-root relation, controlled JSON/plain-text raw reads, and live root-drift detection.
 - Provider-neutral stdio and stateless Streamable HTTP transports with Host/Origin checks, rate limits, request-size limits, and health probes.
+- A multilingual/adversarial eval corpus, scored cross-provider release gates, and ephemeral real-client compatibility checks for Codex CLI and Claude Code.
 
-Local extraction/OCR and further deployment hardening belong to later phases.
+Local extraction/OCR remains outside the current server scope.
 
 ## Requirements
 
@@ -110,6 +111,16 @@ npm run drift:check
 The live tests verify the API root, endpoint coverage, a controlled raw read, Discover search, known-handle resolution, bundle/bitstream enumeration, chunked access to the tested 83 KB extraction, and the associated original PDF link. They do not assert mutable repository counts. The drift command exits non-zero when a root relation is added, removed, or moved; set `NLA_DRIFT_CHECK_ACCESS=true` to also probe classified anonymous-access behavior.
 
 See `docs/endpoint-coverage.md` for the matrix fields, security policy, and drift-check behavior.
+
+Provider-neutral eval and compatibility checks are available separately:
+
+```bash
+npm run eval:validate
+npm run eval:score -- evals/results/codex.json evals/results/claude.json
+npm run compat:clients
+```
+
+The real-client check uses the installed Codex and Claude clients' existing authentication and may incur provider usage; its temporary MCP definitions blank common provider credential variables for the server child. The search tool defaults to compact normalized results without duplicate raw metadata, and extracted text defaults to 8,000-character chunks. See the [eval and compatibility guide](docs/evals.md) for the corpus, result schema, gates, and recorded baseline.
 
 Security and supply-chain checks are available separately because the advisory scan requires network access:
 

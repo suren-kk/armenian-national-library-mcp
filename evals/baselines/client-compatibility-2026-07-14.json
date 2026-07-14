@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-07-14T16:57:18.963Z",
+  "serverCommit": "e22b982983258daf7c511a4f877f533d0368d686",
+  "workingTreeDirty": true,
+  "transport": "stdio",
+  "results": [
+    {
+      "providerFamily": "openai",
+      "client": "Codex CLI",
+      "clientVersion": "codex-cli 0.144.2",
+      "model": "configured-default",
+      "connected": true,
+      "expectedTool": "get_repository_info",
+      "observedToolCalls": ["get_repository_info"],
+      "schemaValid": true,
+      "groundedResponse": true,
+      "latencyMs": 8778,
+      "usage": {
+        "inputTokens": 49291,
+        "cachedInputTokens": 38144,
+        "outputTokens": 137,
+        "costUsd": null
+      }
+    },
+    {
+      "providerFamily": "anthropic",
+      "client": "Claude Code",
+      "clientVersion": "2.1.208 (Claude Code)",
+      "model": "claude-opus-4-8[1m]",
+      "connected": true,
+      "expectedTool": "get_repository_info",
+      "observedToolCalls": ["get_repository_info"],
+      "schemaValid": true,
+      "groundedResponse": true,
+      "latencyMs": 12359,
+      "usage": {
+        "inputTokens": 6,
+        "cachedInputTokens": 64073,
+        "outputTokens": 230,
+        "costUsd": 0.050132499999999997
+      }
+    }
+  ]
+}

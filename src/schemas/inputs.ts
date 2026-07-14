@@ -14,7 +14,7 @@ export const searchCatalogInput = z.object({
   page_size: pageSizeSchema,
   sort: z.string().min(1).max(100).optional(),
   filters: z.array(filterSchema).max(20).default([]),
-  include_metadata: z.boolean().default(true),
+  include_metadata: z.boolean().default(false),
 });
 
 export const searchFacetsInput = z.object({
@@ -44,7 +44,7 @@ export const itemTextInput = z.object({
   item_id: z.string().min(1).max(500),
   bitstream_uuid: uuidSchema.optional(),
   offset_chars: z.number().int().min(0).default(0),
-  max_chars: z.number().int().min(1).default(20_000),
+  max_chars: z.number().int().min(1).default(8_000),
 });
 export const bitstreamInput = z.object({ bitstream_uuid: uuidSchema });
 export const identifierInput = z.object({
