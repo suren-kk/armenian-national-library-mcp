@@ -9,8 +9,9 @@ The current implementation includes:
 - Agent-friendly search, facets, browse, hierarchy, item, and identifier tools with structured output and provenance.
 - Bundle classification, verified bitstream metadata/download links, bounded NLA-provided text extraction, and `nla://` text/small-binary resources.
 - A validated catalogue of every API-root relation, controlled JSON/plain-text raw reads, and live root-drift detection.
+- Provider-neutral stdio and stateless Streamable HTTP transports with Host/Origin checks, rate limits, request-size limits, and health probes.
 
-Streamable HTTP, local extraction/OCR, and deployment hardening belong to later phases.
+Local extraction/OCR and further deployment hardening belong to later phases.
 
 ## Requirements
 
@@ -34,6 +35,14 @@ npm start
 
 The server writes protocol messages only to stdout. Structured operational logs go to stderr.
 
+To run the remote transport locally:
+
+```bash
+MCP_TRANSPORT=http npm start
+```
+
+The MCP endpoint is `http://127.0.0.1:3000/mcp`. Liveness and readiness are exposed separately at `/healthz` and `/readyz`. The HTTP profile is stateless: each request receives a fresh MCP server/transport while the bounded NLA client and cache are shared.
+
 ## Client configuration
 
 After building, a local Codex/Claude-style stdio configuration can invoke:
@@ -46,6 +55,16 @@ After building, a local Codex/Claude-style stdio configuration can invoke:
 ```
 
 For package consumers, the CLI binary is `nla-mcp`.
+
+A remote MCP client can connect to:
+
+```json
+{
+  "url": "https://your-host.example/mcp"
+}
+```
+
+Terminate TLS at a trusted reverse proxy in production and explicitly set `MCP_ALLOWED_HOSTS` and `MCP_ALLOWED_ORIGINS`. See the [deployment guide](docs/deployment.md).
 
 ## Tools
 
@@ -102,3 +121,5 @@ NLA_ALLOWED_HOST=api.nla.am
 ```
 
 All followed links and redirects must remain HTTPS on that exact host and under the configured API base path. File writes are disabled and are not implemented by this server.
+
+HTTP deployments also require explicit Host and Origin allowlists. Requests without an `Origin` header remain valid for native MCP clients; supplied origins must match exactly. `X-Forwarded-For` is ignored unless `MCP_TRUST_PROXY=true`, which should only be enabled behind a trusted proxy that sanitizes the header.

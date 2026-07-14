@@ -22,6 +22,7 @@ export function capabilitySummary(config: AppConfig) {
       "original-file-download-links",
       "endpoint-coverage-catalogue",
       "controlled-raw-api-reads",
+      "stateless-streamable-http",
     ],
   };
 }

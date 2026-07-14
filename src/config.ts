@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  normalizeHostAuthority,
+  normalizeOrigin,
+} from "./security/http-request-policy.js";
 
 const booleanFromString = z
   .enum(["true", "false"])
@@ -9,6 +13,32 @@ const optionalDirectory = z
   .transform((value) => value.trim())
   .pipe(z.string())
   .optional();
+
+function commaSeparated(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== "");
+}
+
+function defaultAllowedHosts(host: string): string[] {
+  if (host === "127.0.0.1") return ["127.0.0.1", "localhost"];
+  if (host === "::1") return ["[::1]", "localhost"];
+  return [host];
+}
+
+function hostForOrigin(host: string): string {
+  return host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
+}
+
+function normalizedValues(
+  values: readonly string[],
+  normalize: (value: string) => string | null,
+): string[] | null {
+  const normalized = values.map(normalize);
+  if (normalized.some((value) => value === null)) return null;
+  return [...new Set(normalized.filter((value) => value !== null))];
+}
 
 export const configSchema = z
   .object({
@@ -43,6 +73,33 @@ export const configSchema = z
     MCP_TRANSPORT: z.enum(["stdio", "http"]).default("stdio"),
     MCP_HOST: z.string().min(1).default("127.0.0.1"),
     MCP_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+    MCP_ALLOWED_HOSTS: z.string().optional(),
+    MCP_ALLOWED_ORIGINS: z.string().optional(),
+    MCP_MAX_REQUEST_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1_024)
+      .max(16_777_216)
+      .default(1_048_576),
+    MCP_RATE_LIMIT_WINDOW_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(3_600_000)
+      .default(60_000),
+    MCP_RATE_LIMIT_PER_CLIENT: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100_000)
+      .default(60),
+    MCP_RATE_LIMIT_GLOBAL: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(1_000_000)
+      .default(600),
+    MCP_TRUST_PROXY: booleanFromString.default(false),
   })
   .transform((env) => {
     const apiBaseUrl = new URL(env.NLA_API_BASE_URL);
@@ -56,6 +113,32 @@ export const configSchema = z
       throw new Error(
         "NLA_DOWNLOAD_DIR is required when file writes are enabled",
       );
+    }
+    if (env.MCP_RATE_LIMIT_GLOBAL < env.MCP_RATE_LIMIT_PER_CLIENT) {
+      throw new Error(
+        "MCP_RATE_LIMIT_GLOBAL must be at least MCP_RATE_LIMIT_PER_CLIENT",
+      );
+    }
+    const configuredHosts =
+      env.MCP_ALLOWED_HOSTS === undefined
+        ? defaultAllowedHosts(env.MCP_HOST)
+        : commaSeparated(env.MCP_ALLOWED_HOSTS);
+    const allowedHosts = normalizedValues(
+      configuredHosts,
+      normalizeHostAuthority,
+    );
+    if (allowedHosts === null || allowedHosts.length === 0) {
+      throw new Error("MCP_ALLOWED_HOSTS must contain valid host authorities");
+    }
+    const configuredOrigins =
+      env.MCP_ALLOWED_ORIGINS === undefined
+        ? allowedHosts.map(
+            (host) => `http://${hostForOrigin(host)}:${env.MCP_PORT}`,
+          )
+        : commaSeparated(env.MCP_ALLOWED_ORIGINS);
+    const allowedOrigins = normalizedValues(configuredOrigins, normalizeOrigin);
+    if (allowedOrigins === null || allowedOrigins.length === 0) {
+      throw new Error("MCP_ALLOWED_ORIGINS must contain valid HTTP(S) origins");
     }
 
     return {
@@ -80,6 +163,13 @@ export const configSchema = z
         transport: env.MCP_TRANSPORT,
         host: env.MCP_HOST,
         port: env.MCP_PORT,
+        allowedHosts,
+        allowedOrigins,
+        maxRequestBytes: env.MCP_MAX_REQUEST_BYTES,
+        rateLimitWindowMs: env.MCP_RATE_LIMIT_WINDOW_MS,
+        rateLimitPerClient: env.MCP_RATE_LIMIT_PER_CLIENT,
+        rateLimitGlobal: env.MCP_RATE_LIMIT_GLOBAL,
+        trustProxy: env.MCP_TRUST_PROXY,
       },
     };
   });
