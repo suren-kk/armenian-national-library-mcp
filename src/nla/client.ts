@@ -31,20 +31,59 @@ interface RequestOptions {
 
 class Semaphore {
   private active = 0;
-  private readonly waiters: Array<() => void> = [];
+  private readonly waiters: Array<{
+    resolve: () => void;
+    reject: (error: unknown) => void;
+    signal?: AbortSignal;
+    onAbort?: () => void;
+  }> = [];
 
-  constructor(private readonly maximum: number) {}
+  constructor(
+    private readonly maximum: number,
+    private readonly maximumQueue = maximum * 4,
+  ) {}
 
-  async use<T>(operation: () => Promise<T>): Promise<T> {
+  async use<T>(operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     if (this.active >= this.maximum) {
-      await new Promise<void>((resolve) => this.waiters.push(resolve));
+      if (this.waiters.length >= this.maximumQueue) {
+        throw new NlaError(
+          "NLA_UPSTREAM_UNAVAILABLE",
+          "The upstream request queue is full",
+        );
+      }
+      await new Promise<void>((resolve, reject) => {
+        const waiter: (typeof this.waiters)[number] = {
+          resolve,
+          reject,
+          ...(signal ? { signal } : {}),
+        };
+        const onAbort = () => {
+          const index = this.waiters.indexOf(waiter);
+          if (index >= 0) this.waiters.splice(index, 1);
+          reject(
+            signal?.reason instanceof Error
+              ? signal.reason
+              : new Error("Request aborted"),
+          );
+        };
+        waiter.onAbort = onAbort;
+        if (signal?.aborted) onAbort();
+        else {
+          signal?.addEventListener("abort", onAbort, { once: true });
+          this.waiters.push(waiter);
+        }
+      });
     }
     this.active += 1;
     try {
       return await operation();
     } finally {
       this.active -= 1;
-      this.waiters.shift()?.();
+      const waiter = this.waiters.shift();
+      if (waiter) {
+        waiter.signal?.removeEventListener("abort", waiter.onAbort!);
+        waiter.resolve();
+      }
     }
   }
 }
@@ -86,10 +125,19 @@ function wait(milliseconds: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+async function cancelResponseBody(response: Response): Promise<void> {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // Cancellation is best-effort; the original response handling continues.
+  }
+}
+
 export class NlaClient {
   readonly urlPolicy: UrlPolicy;
   private readonly semaphore: Semaphore;
   private readonly cache = new Map<string, CacheEntry>();
+  private cacheBytes = 0;
 
   constructor(
     readonly config: NlaConfig,
@@ -186,14 +234,16 @@ export class NlaClient {
     cacheHit: boolean;
   }> {
     const initialUrl = this.buildUrl(path, options.query);
-    const cacheKey = initialUrl.toString();
+    const maximumBytes =
+      options.maxResponseBytes ?? this.config.maxMetadataBytes;
+    const cacheKey = this.cacheKey(initialUrl, options.headers);
     const cached =
       method === "GET" && this.config.cacheEnabled
         ? this.cache.get(cacheKey)
         : undefined;
     if (cached && Date.now() - cached.storedAt <= this.config.cacheTtlMs) {
       this.touchCache(cacheKey, cached);
-      return this.fromCache(cacheKey, cached);
+      return this.fromCache(initialUrl.toString(), cached, maximumBytes);
     }
 
     return this.semaphore.use(async () => {
@@ -251,6 +301,7 @@ export class NlaClient {
           }
 
           if ([301, 302, 303, 307, 308].includes(response.status)) {
+            await cancelResponseBody(response);
             if (redirects >= this.config.maxRedirects) {
               throw NlaError.invalidResponse(
                 "NLA response exceeded the redirect limit",
@@ -266,14 +317,16 @@ export class NlaClient {
           }
 
           if (response.status === 304 && cached) {
+            await cancelResponseBody(response);
             cached.storedAt = Date.now();
-            return this.fromCache(cacheKey, cached);
+            return this.fromCache(initialUrl.toString(), cached, maximumBytes);
           }
 
           if (
             [429, 502, 503, 504].includes(response.status) &&
             retries < this.config.maxRetries
           ) {
+            await cancelResponseBody(response);
             retries += 1;
             const retryAfter = retryAfterMilliseconds(
               response.headers.get("retry-after"),
@@ -282,16 +335,16 @@ export class NlaClient {
             continue;
           }
 
-          if (!response.ok)
+          if (!response.ok) {
+            await cancelResponseBody(response);
             throw NlaError.fromStatus(
               response.status,
               response.headers.get("retry-after"),
             );
+          }
 
           const contentType =
             response.headers.get("content-type") ?? "application/octet-stream";
-          const maximumBytes =
-            options.maxResponseBytes ?? this.config.maxMetadataBytes;
           const bytes =
             method === "HEAD"
               ? new Uint8Array()
@@ -343,7 +396,7 @@ export class NlaClient {
         });
         throw error;
       }
-    });
+    }, options.signal);
   }
 
   private sourceFrom(url: URL, headers: Headers): Source {
@@ -358,12 +411,19 @@ export class NlaClient {
     };
   }
 
-  private fromCache(cacheKey: string, cached: CacheEntry) {
+  private fromCache(
+    sourceUrl: string,
+    cached: CacheEntry,
+    maximumBytes: number,
+  ) {
+    if (cached.bytes.byteLength > maximumBytes) {
+      throw NlaError.responseTooLarge(maximumBytes, cached.bytes.byteLength);
+    }
     return {
       bytes: cached.bytes,
       source: {
         repository: "National Library of Armenia" as const,
-        url: cacheKey,
+        url: sourceUrl,
         retrievedAt: new Date().toISOString(),
         ...(cached.etag ? { etag: cached.etag } : {}),
         ...(cached.lastModified ? { lastModified: cached.lastModified } : {}),
@@ -380,12 +440,47 @@ export class NlaClient {
   }
 
   private storeCache(cacheKey: string, entry: CacheEntry): void {
+    if (entry.bytes.byteLength > this.config.cacheMaxBytes) {
+      this.logger.warn("cache_entry_skipped", {
+        bytes: entry.bytes.byteLength,
+        cacheMaxBytes: this.config.cacheMaxBytes,
+      });
+      return;
+    }
+    const existing = this.cache.get(cacheKey);
+    if (existing) this.cacheBytes -= existing.bytes.byteLength;
     this.touchCache(cacheKey, entry);
-    while (this.cache.size > this.config.cacheMaxEntries) {
+    this.cacheBytes += entry.bytes.byteLength;
+    let evicted = 0;
+    while (
+      this.cache.size > this.config.cacheMaxEntries ||
+      this.cacheBytes > this.config.cacheMaxBytes
+    ) {
       const oldestKey = this.cache.keys().next().value;
       if (!oldestKey) break;
+      const oldest = this.cache.get(oldestKey);
       this.cache.delete(oldestKey);
+      if (oldest) this.cacheBytes -= oldest.bytes.byteLength;
+      evicted += 1;
     }
+    if (evicted > 0) {
+      this.logger.debug("cache_evicted", {
+        evicted,
+        entries: this.cache.size,
+        bytes: this.cacheBytes,
+      });
+    }
+  }
+
+  private cacheKey(
+    url: URL,
+    requestHeaders: Readonly<Record<string, string>> | undefined,
+  ): string {
+    const accept =
+      Object.entries(requestHeaders ?? {}).find(
+        ([name]) => name.toLowerCase() === "accept",
+      )?.[1] ?? "application/hal+json, application/json";
+    return `${url.toString()}\naccept:${accept.trim().toLowerCase()}`;
   }
 
   private backoff(attempt: number): number {

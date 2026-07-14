@@ -1,6 +1,7 @@
 import { NlaError } from "../nla/errors.js";
 
 const ENCODED_UNSAFE_PATH = /%(?:00|23|25|2e|2f|3f|5c)/i;
+const DOT_PATH_SEGMENT = /(?:^|\/)\.{1,2}(?:\/|$)/;
 export const NLA_API_HOST = "api.nla.am";
 
 export class UrlPolicy {
@@ -24,6 +25,7 @@ export class UrlPolicy {
     if (
       pathOrUrl.startsWith("//") ||
       pathOrUrl.includes("\\") ||
+      DOT_PATH_SEGMENT.test(pathOnly) ||
       ENCODED_UNSAFE_PATH.test(pathOnly)
     ) {
       throw NlaError.invalidResponse("Rejected unsafe upstream path");

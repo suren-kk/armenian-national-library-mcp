@@ -84,6 +84,11 @@ describe("Streamable HTTP server", () => {
 
     const health = await fetch(`${runtime.baseUrl}/healthz`);
     expect(health.status).toBe(200);
+    expect(health.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(health.headers.get("content-security-policy")).toContain(
+      "default-src 'none'",
+    );
+    expect(health.headers.get("referrer-policy")).toBe("no-referrer");
     await expect(health.json()).resolves.toEqual({
       status: "ok",
       service: "nla-research-mcp",
@@ -237,5 +242,54 @@ describe("Streamable HTTP server", () => {
     });
     expect(limited.status).toBe(429);
     expect(limited.headers.get("retry-after")).not.toBeNull();
+  });
+
+  it("requires an unambiguous JSON request media type", async () => {
+    const runtime = await startTestServer(httpConfig());
+    closeables.push(runtime);
+
+    const missing = await fetch(`${runtime.baseUrl}/mcp`, {
+      method: "POST",
+      body: "{}",
+    });
+    expect(missing.status).toBe(415);
+
+    const active = await fetch(`${runtime.baseUrl}/mcp`, {
+      method: "POST",
+      headers: { "Content-Type": "text/html" },
+      body: "{}",
+    });
+    expect(active.status).toBe(415);
+
+    const unsupportedCharset = await fetch(`${runtime.baseUrl}/mcp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=iso-8859-1" },
+      body: "{}",
+    });
+    expect(unsupportedCharset.status).toBe(415);
+  });
+
+  it("enforces bearer authentication when configured", async () => {
+    const token = "a-secure-test-token-that-is-at-least-32-characters";
+    const runtime = await startTestServer(
+      httpConfig({ MCP_AUTH_MODE: "bearer", MCP_BEARER_TOKEN: token }),
+    );
+    closeables.push(runtime);
+
+    const missing = await fetch(`${runtime.baseUrl}/mcp`, { method: "GET" });
+    expect(missing.status).toBe(401);
+    expect(missing.headers.get("www-authenticate")).toContain("Bearer");
+
+    const wrong = await fetch(`${runtime.baseUrl}/mcp`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${"x".repeat(40)}` },
+    });
+    expect(wrong.status).toBe(401);
+
+    const authenticated = await fetch(`${runtime.baseUrl}/mcp`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(authenticated.status).not.toBe(401);
   });
 });

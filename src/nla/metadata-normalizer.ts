@@ -89,6 +89,5 @@ export function normalizeDspaceObject(
     name: object.name ? sanitizeUnknown(object.name) : null,
     metadata: sanitizeUnknown(object.metadata ?? {}),
     normalized: normalizeMetadata(object),
-    links: object._links ?? {},
   };
 }

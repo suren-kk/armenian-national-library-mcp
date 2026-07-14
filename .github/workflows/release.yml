@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
+      attestations: write
+      artifact-metadata: write
       contents: write
       id-token: write
       packages: write
@@ -60,6 +62,7 @@ jobs:
             --tag "${IMAGE}:${MAJOR}.${MINOR}" \
             --tag "${IMAGE}:${MAJOR}" \
             --tag "${IMAGE}:latest" \
+            --tag nla-research-mcp:release-scan \
             .
 
           CONTAINER_ID="$(docker run --detach --publish 127.0.0.1:3000:3000 "${IMAGE}:${VERSION}")"
@@ -74,9 +77,25 @@ jobs:
             fi
             sleep 2
           done
+      - name: Scan exact release image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: nla-research-mcp:release-scan
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+          format: sarif
+          output: release/trivy-image.sarif
+      - name: Checksum image scan report
+        run: |
+          (cd release && sha256sum trivy-image.sarif >> SHA256SUMS)
+          (cd release && sha256sum --check SHA256SUMS)
+      - name: Attest checksummed release artifacts
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
+        with:
+          subject-checksums: release/SHA256SUMS
       - name: Publish npm package with provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           PACKAGE_NAME="$(node --input-type=module -e "import manifest from './package.json' with { type: 'json' }; process.stdout.write(manifest.name)")"
           VERSION="${RELEASE_TAG#v}"
@@ -99,13 +118,25 @@ jobs:
             cat /tmp/npm-view-error.log >&2
             exit 1
           fi
-      - name: Publish container image
+      - id: publish-image
+        name: Publish container image
         env:
           GHCR_TOKEN: ${{ github.token }}
         run: |
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          VERSION="${RELEASE_TAG#v}"
           echo "${GHCR_TOKEN}" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
           docker push --all-tags "${IMAGE}"
+          DIGEST="$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
+          echo "image=${IMAGE}" >> "${GITHUB_OUTPUT}"
+          echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
+      - name: Attest published container digest
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
+        with:
+          subject-name: ${{ steps.publish-image.outputs.image }}
+          subject-digest: ${{ steps.publish-image.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
       - name: Create source release
         env:
           GH_TOKEN: ${{ github.token }}

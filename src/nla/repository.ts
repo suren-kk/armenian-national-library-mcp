@@ -29,7 +29,11 @@ import {
   type EndpointRecord,
 } from "./endpoint-registry.js";
 import { assertRawApiPath } from "../security/raw-api-policy.js";
-import { sanitizeUnknown } from "../security/output-sanitizer.js";
+import {
+  sanitizeUnknown,
+  stripUpstreamLinks,
+} from "../security/output-sanitizer.js";
+import { parseDspaceObject } from "./upstream-schemas.js";
 
 export interface SearchFilter {
   field: string;
@@ -59,16 +63,7 @@ interface SearchObject {
 }
 
 function asDspaceObject(value: unknown): DspaceObject {
-  if (
-    value === null ||
-    typeof value !== "object" ||
-    (typeof (value as Partial<DspaceObject>).id !== "string" &&
-      typeof (value as Partial<DspaceObject>).uuid !== "string") ||
-    typeof (value as Partial<DspaceObject>).type !== "string"
-  ) {
-    throw NlaError.invalidResponse("Malformed DSpace object");
-  }
-  return value as DspaceObject;
+  return parseDspaceObject(value);
 }
 
 function boundedPageSize(requested: number, maximum: number): number {
@@ -131,14 +126,14 @@ export class NlaRepository {
       };
     });
     const facets = Array.isArray(document._embedded?.facets)
-      ? document._embedded.facets
+      ? stripUpstreamLinks(document._embedded.facets)
       : [];
 
     return this.envelope(
       {
         results,
         facets,
-        appliedFilters: document.appliedFilters ?? null,
+        appliedFilters: stripUpstreamLinks(document.appliedFilters ?? null),
         query: options.query,
       },
       paginationFrom(result),
@@ -173,7 +168,9 @@ export class NlaRepository {
     });
     const document = requireHalDocument(response.data);
     validatedLinks(document, this.client.urlPolicy);
-    const data = options.facet ? document : (document._embedded?.facets ?? []);
+    const data = stripUpstreamLinks(
+      options.facet ? document : (document._embedded?.facets ?? []),
+    );
     return this.envelope(data, paginationFrom(document), response.source, []);
   }
 
@@ -208,7 +205,9 @@ export class NlaRepository {
     validatedLinks(document, this.client.urlPolicy);
     const relation = mode === "items" ? "items" : "entries";
     const values = getEmbedded<unknown>(document, relation).map((entry) =>
-      mode === "items" ? normalizeDspaceObject(asDspaceObject(entry)) : entry,
+      mode === "items"
+        ? normalizeDspaceObject(asDspaceObject(entry))
+        : stripUpstreamLinks(entry),
     );
     return this.envelope(
       { mode, values },
@@ -515,7 +514,7 @@ export class NlaRepository {
     const document = requireHalDocument(response.data);
     validatedLinks(document, this.client.urlPolicy);
     return this.envelope(
-      document,
+      stripUpstreamLinks(document),
       paginationFrom(document),
       response.source,
       [],
@@ -587,7 +586,6 @@ function withoutMetadata(
     type: object.type,
     name: object.name,
     normalized: object.normalized,
-    links: object.links,
   };
 }
 

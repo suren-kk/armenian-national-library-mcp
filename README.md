@@ -10,7 +10,7 @@ The current implementation includes:
 - Strict TypeScript foundation with the stable official MCP SDK, validated configuration, JSON stderr logging, and stdio transport.
 - A bounded NLA HTTP/HAL client with same-origin enforcement, cancellation, timeouts, safe redirects, retry/backoff, response limits, conditional caching, actionable errors, and metadata normalization.
 - Agent-friendly search, facets, browse, hierarchy, item, and identifier tools with structured output and provenance.
-- Bundle classification, verified bitstream metadata/download links, bounded NLA-provided text extraction, and `nla://` text/small-binary resources.
+- Bundle classification, validated bitstream metadata/access/download links, bounded NLA-provided text extraction, explicit MIME verification state, and `nla://` resources limited to UTF-8 text and verified raster images.
 - A validated catalogue of every API-root relation, controlled JSON/plain-text raw reads, and live root-drift detection.
 - Provider-neutral stdio and stateless Streamable HTTP transports with Host/Origin checks, rate limits, request-size limits, and health probes.
 - A multilingual/adversarial eval corpus, scored cross-provider release gates, and ephemeral real-client compatibility checks for Codex CLI and Claude Code.
@@ -130,7 +130,7 @@ Content resource templates are:
 
 The static `nla://api/endpoints` resource contains the complete validated endpoint catalogue. Prefer the semantic tools above. Use `get_api_capabilities` to inspect coverage and `nla_api_get` only for approved read endpoints that do not have a suitable semantic tool. The raw tool accepts only API-relative paths, `GET`/`HEAD`, bounded queries, and JSON or plain-text responses; it rejects mutation methods, arbitrary hosts, caller headers, traversal, and bitstream content.
 
-Use `get_item_text` with `offset_chars` for larger text. Original PDFs are represented by standard MCP resource links and canonical HTTPS download URLs; binaries larger than `NLA_MAX_INLINE_BINARY_BYTES` are never base64-encoded into model context. See `docs/content-access.md`.
+Use `get_item_text` with `offset_chars` for larger text. Original PDFs and other complex documents are represented by metadata and canonical HTTPS download URLs, never inline MCP content. Only bounded UTF-8 plain text and signature-matched PNG, JPEG, or GIF data can be returned inline; binaries larger than `NLA_MAX_INLINE_BINARY_BYTES` are never base64-encoded into model context. See `docs/content-access.md`.
 
 ## Tests
 

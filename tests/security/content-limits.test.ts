@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertSafeFilename,
   hasExpectedFileSignature,
+  isInlineMimeTypeAllowed,
   readResponseBytes,
 } from "../../src/security/content-limits.js";
 
@@ -16,6 +17,9 @@ describe("content safety boundaries", () => {
     "document.pdf ",
     "document.pdf\u0000.exe",
     "document.pdf\n.exe",
+    "document\u202egnp.exe",
+    "document\u200b.pdf",
+    "document\u00ad.pdf",
   ])("rejects a suspicious filename %j", (filename) => {
     expect(() => assertSafeFilename(filename)).toThrow();
   });
@@ -63,5 +67,21 @@ describe("content safety boundaries", () => {
       mimeType,
     );
     expect(matches).toBe(mimeType === "application/pdf");
+  });
+
+  it.each(["text/plain", "image/png", "image/jpeg", "image/gif"])(
+    "allows reviewed inline type %s",
+    (mimeType) => expect(isInlineMimeTypeAllowed(mimeType)).toBe(true),
+  );
+
+  it.each([
+    "text/html",
+    "image/svg+xml",
+    "application/javascript",
+    "application/pdf",
+    "application/octet-stream",
+    "application/xml",
+  ])("denies active, complex, or unknown inline type %s", (mimeType) => {
+    expect(isInlineMimeTypeAllowed(mimeType)).toBe(false);
   });
 });

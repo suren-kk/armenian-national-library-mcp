@@ -21,8 +21,9 @@ services:
       MCP_PORT: 3000
       MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-localhost,127.0.0.1}
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      MCP_AUTH_MODE: ${MCP_AUTH_MODE:-local}
+      MCP_BEARER_TOKEN: ${MCP_BEARER_TOKEN:-}
       MCP_TRUST_PROXY: ${MCP_TRUST_PROXY:-false}
-      NLA_ENABLE_FILE_WRITES: "false"
     ports:
       - "${MCP_BIND_ADDRESS:-127.0.0.1}:${MCP_PUBLIC_PORT:-3000}:3000"
     healthcheck:

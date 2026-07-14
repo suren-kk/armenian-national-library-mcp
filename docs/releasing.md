@@ -6,9 +6,9 @@ Releases will use stable semantic versions and publish the same independent, uno
 
 1. Configure this checkout with Suren Karapetyan's intended public GitHub remote and enable Actions and GitHub Packages.
 2. Replace the provisional `nla-research-mcp` package name with `@<personal-npm-scope>/nla-research-mcp`; add exact `repository`, `homepage`, and `bugs` metadata; synchronize the lockfile and release tests.
-3. Perform the first public package creation interactively with npm 2FA. Then configure npm Trusted Publishing for the exact GitHub user, `nla-research-mcp` repository, and `release.yml` workflow.
-4. Remove the workflow's `NPM_TOKEN` fallback after Trusted Publishing succeeds. Keep `id-token: write`, use GitHub-hosted runners, and configure a protected release environment when available.
-5. Enable GitHub private vulnerability reporting and set the public support, privacy, security, and rights contacts to the policies in this repository.
+3. Perform the first public package creation interactively with npm 2FA. Then configure npm Trusted Publishing for the exact GitHub user, `nla-research-mcp` repository, and `release.yml` workflow. The workflow intentionally has no long-lived `NPM_TOKEN` fallback.
+4. Keep `id-token: write`, use GitHub-hosted runners, and configure a protected release environment when available.
+5. Enable GitHub private vulnerability reporting, push protection/secret scanning, CodeQL code scanning, Dependabot alerts/security updates, and required branch checks. Set the public support, privacy, security, and rights contacts to the policies in this repository.
 6. Keep the default `GITHUB_TOKEN` package and release permissions available to the tag workflow.
 
 The workflow derives its image destination from the repository name: `ghcr.io/<owner>/<repository>`. No registry, repository, or hosted MCP destination is hard-coded in application behavior.
@@ -48,7 +48,7 @@ git tag -s v1.0.0 -m "Release v1.0.0"
 git push origin v1.0.0
 ```
 
-The tag workflow re-runs all deterministic gates, validates the tag, publishes the public npm package with provenance, builds and pushes the versioned container, and creates the GitHub release with all checksummed artifacts. It tags a stable image as `<version>`, `<major>.<minor>`, `<major>`, and `latest`.
+The tag workflow re-runs all deterministic gates, validates the tag, scans the exact built container, adds the SARIF report to the checksummed and attested artifacts, publishes the public npm package with provenance, builds and pushes the versioned container, and creates the GitHub release. It tags a stable image as `<version>`, `<major>.<minor>`, `<major>`, and `latest`.
 
 Publishing is intentionally not available from an arbitrary untagged branch. Never reuse or move a published version tag. If a channel succeeds and a later channel fails, keep the immutable artifacts and rerun the tag workflow: it skips an existing npm version only when its SHA-512 integrity matches the rebuilt tarball, safely replaces release assets, and idempotently pushes container tags. An integrity mismatch stops the workflow; publish a reviewed patch version instead of overwriting an npm version.
 
@@ -61,4 +61,4 @@ npm view @YOUR_NPM_USERNAME/nla-research-mcp@<version> version dist.integrity
 npx -y @YOUR_NPM_USERNAME/nla-research-mcp@<version>
 ```
 
-Verify `release/SHA256SUMS` against downloaded release assets, inspect the image's OCI `version`, `revision`, and `source` labels, and run the new-user flow in [README.md](../README.md) with both Codex and Claude before announcing the release.
+Verify `release/SHA256SUMS` against downloaded release assets, then verify GitHub's signed artifact and container attestations with `gh attestation verify <artifact> --repo <owner>/nla-research-mcp` and `gh attestation verify oci://ghcr.io/<owner>/nla-research-mcp@sha256:<digest> --repo <owner>/nla-research-mcp`. Inspect the image's OCI `version`, `revision`, and `source` labels, and run the new-user flow in [README.md](../README.md) with both Codex and Claude before announcing the release.

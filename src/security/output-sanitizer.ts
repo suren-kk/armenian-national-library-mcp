@@ -24,3 +24,17 @@ export function sanitizeUnknown<T>(value: T): T {
   }
   return value;
 }
+
+export function stripUpstreamLinks<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return (value as unknown[]).map((item) => stripUpstreamLinks(item)) as T;
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([key]) => key !== "_links")
+        .map(([key, entry]) => [key, stripUpstreamLinks(entry)]),
+    ) as T;
+  }
+  return value;
+}

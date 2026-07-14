@@ -1,6 +1,6 @@
 # Streamable HTTP deployment
 
-The remote profile uses stateless MCP Streamable HTTP at `/mcp`. It does not implement the deprecated standalone SSE transport, server-side sessions, resumability, or authentication. Liveness is available at `/healthz`; readiness at `/readyz` verifies the NLA API root and caches the result for five seconds.
+The remote profile uses stateless MCP Streamable HTTP at `/mcp`. It does not implement the deprecated standalone SSE transport, server-side sessions, or resumability. It defaults to a local-only Host policy, supports an optional bearer-token gate, and can sit behind an authenticating trusted proxy. Liveness is available at `/healthz`; readiness at `/readyz` verifies the NLA API root and caches the result for five seconds.
 
 The project maintainer does not operate a public hosted endpoint. Anyone exposing this profile to other people becomes responsible for that deployment's terms, privacy notice, lawful basis, retention, processors, security, user-rights handling, and rights/takedown response. Start with the data flow and operator requirements in [PRIVACY.md](../PRIVACY.md) and [DATA_AND_CONTENT_RIGHTS.md](../DATA_AND_CONTENT_RIGHTS.md).
 
@@ -25,18 +25,25 @@ MCP_HOST=127.0.0.1
 MCP_PORT=3000
 MCP_ALLOWED_HOSTS=mcp.example.org
 MCP_ALLOWED_ORIGINS=https://inspector.example.org
+MCP_AUTH_MODE=trusted-proxy
 MCP_MAX_REQUEST_BYTES=1048576
+MCP_BODY_TIMEOUT_MS=10000
+MCP_MAX_IN_FLIGHT=32
+MCP_MAX_IN_FLIGHT_PER_CLIENT=4
 MCP_RATE_LIMIT_WINDOW_MS=60000
 MCP_RATE_LIMIT_PER_CLIENT=60
 MCP_RATE_LIMIT_GLOBAL=600
+MCP_RATE_LIMIT_MAX_IDENTITIES=2048
 MCP_TRUST_PROXY=true
 ```
 
+`MCP_AUTH_MODE=local` is the default and rejects non-loopback allowed Host names. For a private listener behind an authenticating gateway, use `trusted-proxy` and ensure the listener is unreachable except from that gateway. Alternatively, set `MCP_AUTH_MODE=bearer` and provide a randomly generated `MCP_BEARER_TOKEN` of at least 32 characters; callers must send it as an `Authorization: Bearer` credential. Bearer mode is a simple deployment control, not an OAuth issuer/audience/scope implementation. Keep the token out of source, logs, shell history, and client-visible output, rotate it after suspected exposure, and still terminate TLS before the Node listener.
+
 `MCP_ALLOWED_HOSTS` contains comma-separated host authorities. Ports are ignored during comparison. `MCP_ALLOWED_ORIGINS` contains comma-separated, exact HTTP(S) origins without paths, queries, fragments, or credentials. A supplied `Origin` is mandatory to validate; requests without one are accepted for non-browser MCP clients.
 
-Keep `MCP_TRUST_PROXY=false` unless the server is directly behind a trusted reverse proxy that removes caller-supplied forwarding headers and writes its own `X-Forwarded-For`. With proxy trust disabled, per-client rate limits use the direct TCP peer. Global limits always apply.
+Keep `MCP_TRUST_PROXY=false` unless the server is directly behind a trusted reverse proxy that removes caller-supplied forwarding headers and writes its own `X-Forwarded-For`. `MCP_TRUST_PROXY` affects client identity only; it does not enable authentication and is independent from `MCP_AUTH_MODE`. With proxy trust disabled, per-client rate limits use the direct TCP peer. Global limits always apply.
 
-The application rejects compressed request bodies. JSON request bodies are bounded before parsing, and the default maximum is 1 MiB. Health probes are outside the MCP rate limit so orchestrators can reliably assess the process.
+The application accepts only an unambiguous `application/json` POST representation, rejects compressed bodies, applies a ten-second body-read deadline, and bounds JSON before parsing at 1 MiB by default. It limits active MCP work globally and per client, bounds rate-limiter identity state, and applies a separate coarse limiter to every HTTP route. The in-process controls are per instance and are not a replacement for proxy connection limits, distributed quotas, or authentication.
 
 ## Probe examples
 
@@ -45,7 +52,7 @@ curl --fail http://127.0.0.1:3000/healthz
 curl --fail http://127.0.0.1:3000/readyz
 ```
 
-Readiness returns `503` when the configured NLA API is unavailable. Do not expose the Node listener directly to the public internet; use the proxy for TLS, connection limits, access logs, and any future authentication layer.
+Readiness returns `503` when the configured NLA API is unavailable. Do not expose the Node listener directly to the public internet. Keep it on loopback or a private network unless a trusted proxy enforces TLS, client authentication with issuer/audience/scope validation, distributed quotas, connection and slow-client limits, and sanitized access logs. Proxy credentials terminate at that boundary and must never be forwarded to NLA.
 
 ## Container runtime
 

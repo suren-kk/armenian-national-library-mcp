@@ -1,8 +1,19 @@
 import { sanitizeUpstreamText } from "../security/output-sanitizer.js";
-import { assertSafeFilename } from "../security/content-limits.js";
+import {
+  assertSafeFilename,
+  detectFileMimeType,
+  isInlineMimeTypeAllowed,
+  normalizeMimeType,
+} from "../security/content-limits.js";
 import type { NlaClient } from "./client.js";
 import { NlaError } from "./errors.js";
 import { getEmbedded, requireHalDocument, validatedLinks } from "./hal.js";
+import {
+  parseAccessStatus,
+  parseBitstream,
+  parseBitstreamFormat,
+  parseDspaceObject,
+} from "./upstream-schemas.js";
 import type {
   AccessStatus,
   Bitstream,
@@ -53,10 +64,6 @@ export interface ItemTextData {
   };
   resourceLink: NonNullable<ResolvedBitstream["resourceLink"]>;
   downloadUrl: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function assertUuid(uuid: string, label = "UUID"): void {
@@ -116,58 +123,33 @@ export function decodeUtf8(bytes: Uint8Array): string {
 }
 
 function asBitstream(value: unknown): Bitstream {
-  if (
-    !isRecord(value) ||
-    value.type !== "bitstream" ||
-    typeof value.uuid !== "string" ||
-    typeof value.name !== "string" ||
-    typeof value.sizeBytes !== "number" ||
-    !Number.isSafeInteger(value.sizeBytes) ||
-    value.sizeBytes < 0
-  ) {
-    throw NlaError.invalidResponse("Malformed DSpace bitstream record");
-  }
-  assertUuid(value.uuid, "Bitstream UUID");
-  assertSafeFilename(value.name);
-  return value as unknown as Bitstream;
+  const bitstream = parseBitstream(value);
+  assertUuid(bitstream.uuid, "Bitstream UUID");
+  assertSafeFilename(bitstream.name);
+  return bitstream;
 }
 
 function asBundle(
   value: unknown,
 ): DspaceObject & { uuid: string; name: string } {
+  const object = parseDspaceObject(value);
   if (
-    !isRecord(value) ||
-    value.type !== "bundle" ||
-    typeof value.uuid !== "string" ||
-    typeof value.name !== "string"
+    object.type !== "bundle" ||
+    typeof object.uuid !== "string" ||
+    typeof object.name !== "string"
   ) {
     throw NlaError.invalidResponse("Malformed DSpace bundle record");
   }
-  assertUuid(value.uuid, "Bundle UUID");
-  return value as unknown as DspaceObject & { uuid: string; name: string };
+  assertUuid(object.uuid, "Bundle UUID");
+  return object as DspaceObject & { uuid: string; name: string };
 }
 
 function asFormat(value: unknown): BitstreamFormat {
-  if (
-    !isRecord(value) ||
-    value.type !== "bitstreamformat" ||
-    typeof value.id !== "number" ||
-    typeof value.mimetype !== "string"
-  ) {
-    throw NlaError.invalidResponse("Malformed DSpace bitstream format record");
-  }
-  return value as unknown as BitstreamFormat;
+  return parseBitstreamFormat(value);
 }
 
 function asAccessStatus(value: unknown): AccessStatus {
-  if (
-    !isRecord(value) ||
-    value.type !== "accessStatus" ||
-    typeof value.status !== "string"
-  ) {
-    throw NlaError.invalidResponse("Malformed DSpace access status record");
-  }
-  return value as unknown as AccessStatus;
+  return parseAccessStatus(value);
 }
 
 export class NlaContentResolver {
@@ -260,9 +242,9 @@ export class NlaContentResolver {
         { accessStatus: result.data.access.status },
       );
     }
-    if (!result.data.downloadUrl || !result.data.resourceLink) {
+    if (!result.data.downloadUrl) {
       throw NlaError.invalidResponse(
-        "A public bitstream did not produce safe content links",
+        "A public bitstream did not produce a safe download link",
       );
     }
     return result;
@@ -280,7 +262,7 @@ export class NlaContentResolver {
     const textFiles = files.data
       .filter((bundle) => bundle.classification === "TEXT")
       .flatMap((bundle) => bundle.files)
-      .filter((file) => file.mimeType.toLowerCase().startsWith("text/plain"));
+      .filter((file) => normalizeMimeType(file.mimeType) === "text/plain");
     const selected = options.bitstreamUuid
       ? textFiles.find((file) => file.uuid === options.bitstreamUuid)
       : textFiles[0];
@@ -323,7 +305,7 @@ export class NlaContentResolver {
         maxResponseBytes: this.client.config.maxMetadataBytes,
       },
     );
-    if (!content.contentType.toLowerCase().startsWith("text/plain")) {
+    if (normalizeMimeType(content.contentType) !== "text/plain") {
       throw NlaError.invalidResponse(
         "NLA text bitstream content is not text/plain",
         {
@@ -384,7 +366,14 @@ export class NlaContentResolver {
         },
       );
     }
-    const isText = bitstream.mimeType.toLowerCase().startsWith("text/plain");
+    const declaredMimeType = normalizeMimeType(bitstream.mimeType);
+    if (!isInlineMimeTypeAllowed(declaredMimeType)) {
+      throw NlaError.invalidResponse(
+        "This MIME type is not eligible for inline MCP content",
+        { declaredMimeType },
+      );
+    }
+    const isText = declaredMimeType === "text/plain";
     const byteLimit = isText
       ? this.client.config.maxMetadataBytes
       : this.client.config.maxInlineBinaryBytes;
@@ -398,7 +387,35 @@ export class NlaContentResolver {
         maxResponseBytes: byteLimit,
       },
     );
-    return { bitstream, bytes: content.data, source: content.source };
+    const responseMimeType = normalizeMimeType(content.contentType);
+    if (responseMimeType !== declaredMimeType) {
+      throw NlaError.invalidResponse(
+        "Bitstream response MIME type does not match its metadata",
+        { declaredMimeType, responseMimeType },
+      );
+    }
+    let detectedMimeType: string | null;
+    if (isText) {
+      decodeUtf8(content.data);
+      detectedMimeType = "text/plain";
+    } else {
+      detectedMimeType = detectFileMimeType(content.data);
+    }
+    if (detectedMimeType !== declaredMimeType) {
+      throw NlaError.invalidResponse(
+        "Bitstream bytes do not match the declared MIME type",
+        { declaredMimeType, detectedMimeType },
+      );
+    }
+    return {
+      bitstream: {
+        ...bitstream,
+        detectedMimeType,
+        mimeVerification: "verified",
+      },
+      bytes: content.data,
+      source: content.source,
+    };
   }
 
   private async listBundleBitstreams(
@@ -446,6 +463,7 @@ export class NlaContentResolver {
     access: AccessStatus,
   ): ResolvedBitstream {
     const publiclyReadable = access.status === "open.access";
+    const inlineEligible = isInlineMimeTypeAllowed(format.mimetype);
     const downloadUrl = publiclyReadable
       ? `${this.client.config.apiBaseUrl}/core/bitstreams/${bitstream.uuid}/content`
       : null;
@@ -454,6 +472,9 @@ export class NlaContentResolver {
       filename: bitstream.name,
       bundle: classifyBundle(bitstream.bundleName),
       mimeType: format.mimetype,
+      detectedMimeType: null,
+      mimeVerification: "declared-unverified",
+      inlineEligible,
       sizeBytes: bitstream.sizeBytes,
       format: {
         id: format.id,
@@ -469,16 +490,17 @@ export class NlaContentResolver {
       },
       checksum: bitstream.checkSum ?? null,
       metadata: bitstream.metadata ?? {},
-      resourceLink: publiclyReadable
-        ? {
-            type: "resource_link",
-            uri: `nla://bitstream/${bitstream.uuid}/content`,
-            name: bitstream.name,
-            description: `NLA ${classifyBundle(bitstream.bundleName)} bitstream content`,
-            mimeType: format.mimetype,
-            size: bitstream.sizeBytes,
-          }
-        : null,
+      resourceLink:
+        publiclyReadable && inlineEligible
+          ? {
+              type: "resource_link",
+              uri: `nla://bitstream/${bitstream.uuid}/content`,
+              name: bitstream.name,
+              description: `NLA ${classifyBundle(bitstream.bundleName)} bitstream content`,
+              mimeType: format.mimetype,
+              size: bitstream.sizeBytes,
+            }
+          : null,
       metadataResource: `nla://bitstream/${bitstream.uuid}`,
       downloadUrl,
     };

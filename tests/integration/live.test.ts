@@ -49,7 +49,9 @@ describe.skipIf(!live)("live NLA smoke tests", () => {
       ?.files.find((file) => file.mimeType === "application/pdf");
     expect(original).toMatchObject({
       access: { publiclyReadable: true },
-      resourceLink: { type: "resource_link" },
+      inlineEligible: false,
+      mimeVerification: "declared-unverified",
+      resourceLink: null,
     });
     expect(original?.downloadUrl).toContain("/core/bitstreams/");
     expect(original?.downloadUrl?.endsWith("/content")).toBe(true);

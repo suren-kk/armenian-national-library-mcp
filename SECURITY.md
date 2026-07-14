@@ -18,3 +18,5 @@ The maintainer will acknowledge a report, establish severity and scope, coordina
 Operational incidents and upstream NLA availability problems are not security vulnerabilities. Follow [the support and outage runbook](docs/support.md) for those cases.
 
 Privacy incidents and rights complaints follow [PRIVACY.md](PRIVACY.md) and [TAKEDOWN.md](TAKEDOWN.md).
+
+Maintainer response procedures, including credential and release revocation, are documented in [the security incident runbook](docs/security-incident-response.md).

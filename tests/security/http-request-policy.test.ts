@@ -49,4 +49,15 @@ describe("HTTP request policy", () => {
     expect(direct.clientId(request)).toBe("127.0.0.1");
     expect(proxied.clientId(request)).toBe("203.0.113.5");
   });
+
+  it("rejects generated authority confusion variants", () => {
+    const prefixes = ["evil.example@", "evil.example%40", "//", "\\\\"];
+    const suffixes = ["/path", "?query", "#fragment", ",evil.example"];
+    for (const prefix of prefixes) {
+      expect(normalizeHostAuthority(`${prefix}localhost`)).toBeNull();
+    }
+    for (const suffix of suffixes) {
+      expect(normalizeHostAuthority(`localhost${suffix}`)).toBeNull();
+    }
+  });
 });

@@ -30,8 +30,7 @@ ENV NODE_ENV=production \
     MCP_PORT=3000 \
     MCP_ALLOWED_HOSTS=localhost,127.0.0.1 \
     MCP_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 \
-    MCP_TRUST_PROXY=false \
-    NLA_ENABLE_FILE_WRITES=false
+    MCP_TRUST_PROXY=false
 
 WORKDIR /app
 

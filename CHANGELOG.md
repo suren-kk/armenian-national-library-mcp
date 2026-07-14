@@ -16,6 +16,11 @@ All notable changes to this project are documented here. Releases follow [Semant
 ### Security
 
 - Added weekly npm, container, and GitHub Actions dependency updates with immutable-action enforcement and advisory scans in pull-request and release workflows.
+- Restricted MCP resource links to exact server-generated bitstream URIs, stripped upstream links from semantic output, and added runtime validation for security-relevant NLA records.
+- Limited inline content to verified plain text and raster images, hardened filename handling, and failed closed for restricted or unknown access states.
+- Enforced caller-specific and aggregate cache limits, bounded upstream queues, rate-limiter identities, HTTP concurrency, request bodies, and request media types.
+- Added local, bearer-token, and trusted-proxy deployment modes, safe internal-error responses, API security headers, and security-focused rejection logging.
+- Added CodeQL, Trivy source/image scanning, npm trusted publishing, keyless release/image attestations, and an incident-response runbook.
 
 ## [1.0.0] - 2026-07-14
 

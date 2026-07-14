@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import {
   createServer as createNodeServer,
   type IncomingMessage,
@@ -11,6 +12,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AppConfig } from "../config.js";
 import { NlaClient } from "../nla/client.js";
 import { Logger } from "../observability/logger.js";
+import { HttpConcurrencyLimiter } from "../security/concurrency-limiter.js";
 import { HttpRequestPolicy } from "../security/http-request-policy.js";
 import { HttpRateLimiter } from "../security/rate-limiter.js";
 import { createServer } from "../server/create-server.js";
@@ -22,7 +24,7 @@ const READINESS_CACHE_MS = 5_000;
 
 class RequestBodyError extends Error {
   constructor(
-    readonly kind: "invalid" | "too-large" | "unsupported-encoding",
+    readonly kind: "invalid" | "too-large" | "unsupported-encoding" | "timeout",
     message: string,
   ) {
     super(message);
@@ -64,6 +66,53 @@ function jsonResponse(
   response.end(headOnly ? undefined : body);
 }
 
+function setSecurityHeaders(response: ServerResponse): void {
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader(
+    "Content-Security-Policy",
+    "default-src 'none'; frame-ancestors 'none'",
+  );
+  response.setHeader("Referrer-Policy", "no-referrer");
+  response.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()",
+  );
+}
+
+function hasSupportedJsonMediaType(request: IncomingMessage): boolean {
+  const contentTypeHeaders: string[] = [];
+  for (let index = 0; index < request.rawHeaders.length; index += 2) {
+    if (request.rawHeaders[index]?.toLowerCase() === "content-type") {
+      contentTypeHeaders.push(request.rawHeaders[index + 1] ?? "");
+    }
+  }
+  if (contentTypeHeaders.length !== 1) return false;
+  const [mediaType, ...parameters] = contentTypeHeaders[0]!
+    .split(";")
+    .map((value) => value.trim().toLowerCase());
+  return (
+    mediaType === "application/json" &&
+    parameters.every((value) => value === "charset=utf-8")
+  );
+}
+
+function hasValidBearerToken(
+  request: IncomingMessage,
+  expectedToken: string,
+): boolean {
+  const authorization = request.headers.authorization;
+  if (
+    typeof authorization !== "string" ||
+    !authorization.startsWith("Bearer ")
+  ) {
+    return false;
+  }
+  const suppliedToken = authorization.slice("Bearer ".length);
+  const expected = createHash("sha256").update(expectedToken).digest();
+  const supplied = createHash("sha256").update(suppliedToken).digest();
+  return timingSafeEqual(expected, supplied);
+}
+
 function mcpError(
   response: ServerResponse,
   status: number,
@@ -88,6 +137,7 @@ function closeConnectionAfterResponse(
 async function readJsonBody(
   request: IncomingMessage,
   maximumBytes: number,
+  timeoutMs: number,
 ): Promise<unknown> {
   const encoding = request.headers["content-encoding"];
   if (encoding && encoding.toLowerCase() !== "identity") {
@@ -109,7 +159,12 @@ async function readJsonBody(
   const chunks: Buffer[] = [];
   let total = 0;
   await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(
+      () => fail(new RequestBodyError("timeout", "Request body timed out")),
+      timeoutMs,
+    );
     const cleanup = () => {
+      clearTimeout(timer);
       request.off("data", onData);
       request.off("end", onEnd);
       request.off("error", onError);
@@ -185,7 +240,19 @@ export function createHttpApplication(
     windowMs: config.mcp.rateLimitWindowMs,
     perClientLimit: config.mcp.rateLimitPerClient,
     globalLimit: config.mcp.rateLimitGlobal,
+    maxIdentities: config.mcp.rateLimitMaxIdentities,
     now,
+  });
+  const routeRateLimiter = new HttpRateLimiter({
+    windowMs: config.mcp.rateLimitWindowMs,
+    perClientLimit: Math.max(config.mcp.rateLimitPerClient * 4, 120),
+    globalLimit: Math.max(config.mcp.rateLimitGlobal * 4, 1_200),
+    maxIdentities: config.mcp.rateLimitMaxIdentities,
+    now,
+  });
+  const concurrencyLimiter = new HttpConcurrencyLimiter({
+    globalLimit: config.mcp.maxInFlight,
+    perClientLimit: config.mcp.maxInFlightPerClient,
   });
   const activeCleanups = new Set<() => Promise<void>>();
   let readiness:
@@ -223,7 +290,8 @@ export function createHttpApplication(
     request: IncomingMessage,
     response: ServerResponse,
   ): Promise<void> => {
-    const rate = rateLimiter.check(policy.clientId(request));
+    const clientId = policy.clientId(request);
+    const rate = rateLimiter.check(clientId);
     response.setHeader("RateLimit-Limit", rate.limit);
     response.setHeader("RateLimit-Remaining", rate.remaining);
     if (!rate.allowed) {
@@ -234,77 +302,120 @@ export function createHttpApplication(
       mcpError(response, 429, -32_000, "Rate limit exceeded");
       return;
     }
-
-    let parsedBody: unknown;
-    if (request.method === "POST") {
-      try {
-        parsedBody = await readJsonBody(request, config.mcp.maxRequestBytes);
-      } catch (error) {
-        if (error instanceof RequestBodyError) {
-          if (error.kind === "too-large") {
-            closeConnectionAfterResponse(request, response);
-            mcpError(response, 413, -32_000, error.message);
-          } else if (error.kind === "unsupported-encoding") {
-            closeConnectionAfterResponse(request, response);
-            mcpError(response, 415, -32_000, error.message);
-          } else {
-            mcpError(response, 400, -32_700, error.message);
-          }
-          return;
-        }
-        throw error;
-      }
+    const releaseConcurrency = concurrencyLimiter.acquire(clientId);
+    if (!releaseConcurrency) {
+      closeConnectionAfterResponse(request, response);
+      response.setHeader("Retry-After", "1");
+      logger.warn("concurrency_limit_exceeded", {
+        ...concurrencyLimiter.snapshot(),
+      });
+      mcpError(response, 503, -32_000, "Server is busy");
+      return;
     }
 
-    const mcpServer = createMcpServer();
-    // Omitting sessionIdGenerator selects the SDK's stateless mode. A fresh
-    // transport and MCP server are created for every request.
-    const transport = new StreamableHTTPServerTransport({
-      enableJsonResponse: true,
-    });
-    let closed = false;
-    const cleanup = async (): Promise<void> => {
-      if (closed) return;
-      closed = true;
-      activeCleanups.delete(cleanup);
-      await mcpServer.close();
-    };
-    activeCleanups.add(cleanup);
-    response.once("close", () => {
-      void cleanup().catch((error: unknown) => {
-        logger.warn("mcp_cleanup_failed", {
-          error: error instanceof Error ? error.message : String(error),
+    try {
+      let parsedBody: unknown;
+      if (request.method === "POST") {
+        if (!hasSupportedJsonMediaType(request)) {
+          closeConnectionAfterResponse(request, response);
+          mcpError(
+            response,
+            415,
+            -32_000,
+            "Content-Type must be application/json",
+          );
+          return;
+        }
+        try {
+          parsedBody = await readJsonBody(
+            request,
+            config.mcp.maxRequestBytes,
+            config.mcp.bodyTimeoutMs,
+          );
+        } catch (error) {
+          if (error instanceof RequestBodyError) {
+            logger.warn("request_body_rejected", { kind: error.kind });
+            if (error.kind === "too-large") {
+              closeConnectionAfterResponse(request, response);
+              mcpError(response, 413, -32_000, error.message);
+            } else if (error.kind === "unsupported-encoding") {
+              closeConnectionAfterResponse(request, response);
+              mcpError(response, 415, -32_000, error.message);
+            } else if (error.kind === "timeout") {
+              closeConnectionAfterResponse(request, response);
+              mcpError(response, 408, -32_000, error.message);
+            } else {
+              mcpError(response, 400, -32_700, error.message);
+            }
+            return;
+          }
+          throw error;
+        }
+      }
+
+      const mcpServer = createMcpServer();
+      // Omitting sessionIdGenerator selects the SDK's stateless mode. A fresh
+      // transport and MCP server are created for every request.
+      const transport = new StreamableHTTPServerTransport({
+        enableJsonResponse: true,
+      });
+      let closed = false;
+      const cleanup = async (): Promise<void> => {
+        if (closed) return;
+        closed = true;
+        activeCleanups.delete(cleanup);
+        await mcpServer.close();
+      };
+      activeCleanups.add(cleanup);
+      response.once("close", () => {
+        void cleanup().catch((error: unknown) => {
+          logger.warn("mcp_cleanup_failed", {
+            error: error instanceof Error ? error.message : String(error),
+          });
         });
       });
-    });
-    try {
-      // SDK 1.29's optional callback declarations are not exact-optional clean,
-      // although the Node transport implements the runtime Transport contract.
-      await mcpServer.connect(
-        transport as unknown as Parameters<McpServer["connect"]>[0],
-      );
-      await transport.handleRequest(request, response, parsedBody);
-      if (response.writableEnded) await cleanup();
-    } catch (error) {
-      logger.error("mcp_request_failed", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      if (!response.headersSent) {
-        mcpError(response, 500, -32_603, "Internal server error");
+      try {
+        // SDK 1.29's optional callback declarations are not exact-optional clean,
+        // although the Node transport implements the runtime Transport contract.
+        await mcpServer.connect(
+          transport as unknown as Parameters<McpServer["connect"]>[0],
+        );
+        await transport.handleRequest(request, response, parsedBody);
+        if (response.writableEnded) await cleanup();
+      } catch (error) {
+        logger.error("mcp_request_failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        if (!response.headersSent) {
+          mcpError(response, 500, -32_603, "Internal server error");
+        }
+        await cleanup();
       }
-      await cleanup();
+    } finally {
+      releaseConcurrency();
     }
   };
 
   const handler: RequestListener = (request, response) => {
     void (async () => {
+      setSecurityHeaders(response);
+      const routeRate = routeRateLimiter.check(policy.clientId(request));
+      if (!routeRate.allowed) {
+        closeConnectionAfterResponse(request, response);
+        response.setHeader("Retry-After", routeRate.retryAfterSeconds);
+        logger.warn("route_rate_limit_exceeded", { scope: routeRate.scope });
+        jsonResponse(response, 429, { error: "Rate limit exceeded" });
+        return;
+      }
       if (!policy.isHostAllowed(request.headers.host)) {
+        logger.warn("host_rejected");
         closeConnectionAfterResponse(request, response);
         jsonResponse(response, 403, { error: "Host is not allowed" });
         return;
       }
       const origin = request.headers.origin;
       if (!policy.isOriginAllowed(origin)) {
+        logger.warn("origin_rejected");
         closeConnectionAfterResponse(request, response);
         jsonResponse(response, 403, { error: "Origin is not allowed" });
         return;
@@ -369,6 +480,20 @@ export function createHttpApplication(
         mcpError(response, 405, -32_000, "Method not allowed");
         return;
       }
+      if (
+        config.mcp.authMode === "bearer" &&
+        (!config.mcp.bearerToken ||
+          !hasValidBearerToken(request, config.mcp.bearerToken))
+      ) {
+        closeConnectionAfterResponse(request, response);
+        response.setHeader(
+          "WWW-Authenticate",
+          'Bearer realm="nla-research-mcp"',
+        );
+        logger.warn("authentication_rejected");
+        mcpError(response, 401, -32_000, "Authentication required");
+        return;
+      }
       await handleMcp(request, response);
     })().catch((error: unknown) => {
       logger.error("http_request_failed", {
@@ -397,9 +522,11 @@ export async function startStreamableHttp(
   const application = createHttpApplication(config, dependencies);
   const server = createNodeServer(application.handler);
   server.headersTimeout = 10_000;
-  server.requestTimeout = 120_000;
+  server.requestTimeout = 30_000;
   server.keepAliveTimeout = 5_000;
   server.maxHeadersCount = 100;
+  server.maxConnections = config.mcp.maxInFlight * 2;
+  server.maxRequestsPerSocket = 100;
 
   await new Promise<void>((resolve, reject) => {
     const onError = (error: Error) => {

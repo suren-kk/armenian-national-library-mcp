@@ -243,7 +243,7 @@ describe("content resolution", () => {
     ).rejects.toMatchObject({ code: "NLA_ACCESS_RESTRICTED" });
   });
 
-  it("rejects oversized binary resources before downloading content", async () => {
+  it("does not inline complex document formats", async () => {
     const pdfUuid = "c81247ed-05ac-47e1-8eef-b7b0290d73ec";
     // Async keeps this test double assignable to the platform fetch signature.
     // eslint-disable-next-line @typescript-eslint/require-await
@@ -290,7 +290,7 @@ describe("content resolution", () => {
     );
 
     await expect(resolver.readBitstreamContent(pdfUuid)).rejects.toMatchObject({
-      code: "NLA_RESPONSE_TOO_LARGE",
+      code: "NLA_INVALID_RESPONSE",
     });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });

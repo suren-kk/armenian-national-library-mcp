@@ -8,6 +8,7 @@ describe("HTTP rate limiter", () => {
       windowMs: 10_000,
       perClientLimit: 2,
       globalLimit: 10,
+      maxIdentities: 10,
       now: () => now,
     });
 
@@ -38,6 +39,7 @@ describe("HTTP rate limiter", () => {
       windowMs: 60_000,
       perClientLimit: 5,
       globalLimit: 2,
+      maxIdentities: 10,
       now: () => 1_000,
     });
 
@@ -47,6 +49,23 @@ describe("HTTP rate limiter", () => {
       allowed: false,
       scope: "global",
       remaining: 0,
+    });
+  });
+
+  it("bounds high-cardinality client identity state", () => {
+    const limiter = new HttpRateLimiter({
+      windowMs: 60_000,
+      perClientLimit: 5,
+      globalLimit: 100,
+      maxIdentities: 2,
+      now: () => 1_000,
+    });
+
+    expect(limiter.check("client-a").allowed).toBe(true);
+    expect(limiter.check("client-b").allowed).toBe(true);
+    expect(limiter.check("client-c")).toMatchObject({
+      allowed: false,
+      scope: "identity",
     });
   });
 });

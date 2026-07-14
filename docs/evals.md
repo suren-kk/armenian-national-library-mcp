@@ -90,4 +90,4 @@ This baseline proves protocol/client interoperability, not full corpus quality. 
 
 ## Output tuning policy
 
-Search defaults to ten results and normalized metadata only; set `include_metadata` only for a task that needs raw fields, then retrieve complete metadata for selected records with `get_item`. Text defaults to 8,000 Unicode characters and exposes `nextOffset` for deliberate continuation. Original binary files remain resource links/download URLs rather than model-context bytes.
+Search defaults to ten results and normalized metadata only; set `include_metadata` only for a task that needs raw fields, then retrieve complete metadata for selected records with `get_item`. Text defaults to 8,000 Unicode characters and exposes `nextOffset` for deliberate continuation. Original and complex binary files remain canonical download URLs rather than model-context bytes; MCP content links are emitted only for the reviewed inline allowlist.

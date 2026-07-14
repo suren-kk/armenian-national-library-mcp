@@ -26,12 +26,12 @@ describe("binary content signatures", () => {
     ).toBe(false);
   });
 
-  it("does not guess signatures for unrecognized MIME types", () => {
+  it("fails closed for unrecognized MIME types", () => {
     expect(
       hasExpectedFileSignature(
         new Uint8Array([1, 2, 3]),
         "application/octet-stream",
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 });

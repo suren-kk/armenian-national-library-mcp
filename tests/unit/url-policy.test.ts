@@ -30,4 +30,16 @@ describe("NLA URL policy", () => {
       policy.assertAllowed(new URL("https://api.nla.am/server/actuator")),
     ).toThrow();
   });
+
+  it("maintains the base-path invariant across generated encoding variants", () => {
+    const dotVariants = ["..", "%2e%2e", "%2E%2E", "%252e%252e"];
+    const separatorVariants = ["/", "%2f", "%2F", "%5c", "%255c"];
+    for (const dots of dotVariants) {
+      for (const separator of separatorVariants) {
+        expect(() =>
+          policy.resolve(`core/${dots}${separator}system`),
+        ).toThrow();
+      }
+    }
+  });
 });

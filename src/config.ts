@@ -9,11 +9,11 @@ const booleanFromString = z
   .enum(["true", "false"])
   .transform((value) => value === "true");
 
-const optionalDirectory = z
-  .string()
-  .transform((value) => value.trim())
-  .pipe(z.string())
-  .optional();
+const optionalSecret = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().min(32).optional(),
+);
 
 function commaSeparated(value: string | undefined): string[] {
   return (value ?? "")
@@ -69,19 +69,40 @@ export const configSchema = z
       .min(1)
       .max(10_000)
       .default(128),
-    NLA_ENABLE_FILE_WRITES: booleanFromString.default(false),
-    NLA_DOWNLOAD_DIR: optionalDirectory,
+    NLA_CACHE_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1_024)
+      .max(134_217_728)
+      .default(16_777_216),
     MCP_TRANSPORT: z.enum(["stdio", "http"]).default("stdio"),
     MCP_HOST: z.string().min(1).default("127.0.0.1"),
     MCP_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
     MCP_ALLOWED_HOSTS: z.string().optional(),
     MCP_ALLOWED_ORIGINS: z.string().optional(),
+    MCP_AUTH_MODE: z
+      .enum(["local", "bearer", "trusted-proxy"])
+      .default("local"),
+    MCP_BEARER_TOKEN: optionalSecret,
     MCP_MAX_REQUEST_BYTES: z.coerce
       .number()
       .int()
       .min(1_024)
       .max(16_777_216)
       .default(1_048_576),
+    MCP_BODY_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(60_000)
+      .default(10_000),
+    MCP_MAX_IN_FLIGHT: z.coerce.number().int().min(1).max(256).default(32),
+    MCP_MAX_IN_FLIGHT_PER_CLIENT: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(64)
+      .default(4),
     MCP_RATE_LIMIT_WINDOW_MS: z.coerce
       .number()
       .int()
@@ -98,8 +119,14 @@ export const configSchema = z
       .number()
       .int()
       .min(1)
-      .max(1_000_000)
+      .max(10_000)
       .default(600),
+    MCP_RATE_LIMIT_MAX_IDENTITIES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10_000)
+      .default(2_048),
     MCP_TRUST_PROXY: booleanFromString.default(false),
   })
   .transform((env) => {
@@ -110,14 +137,14 @@ export const configSchema = z
     if (apiBaseUrl.hostname !== env.NLA_ALLOWED_HOST) {
       throw new Error("NLA_API_BASE_URL host must match NLA_ALLOWED_HOST");
     }
-    if (env.NLA_ENABLE_FILE_WRITES && !env.NLA_DOWNLOAD_DIR) {
-      throw new Error(
-        "NLA_DOWNLOAD_DIR is required when file writes are enabled",
-      );
-    }
     if (env.MCP_RATE_LIMIT_GLOBAL < env.MCP_RATE_LIMIT_PER_CLIENT) {
       throw new Error(
         "MCP_RATE_LIMIT_GLOBAL must be at least MCP_RATE_LIMIT_PER_CLIENT",
+      );
+    }
+    if (env.MCP_MAX_IN_FLIGHT < env.MCP_MAX_IN_FLIGHT_PER_CLIENT) {
+      throw new Error(
+        "MCP_MAX_IN_FLIGHT must be at least MCP_MAX_IN_FLIGHT_PER_CLIENT",
       );
     }
     const configuredHosts =
@@ -141,6 +168,23 @@ export const configSchema = z
     if (allowedOrigins === null || allowedOrigins.length === 0) {
       throw new Error("MCP_ALLOWED_ORIGINS must contain valid HTTP(S) origins");
     }
+    const localAuthorities = new Set([
+      "127.0.0.1",
+      "::1",
+      "[::1]",
+      "localhost",
+    ]);
+    if (
+      env.MCP_AUTH_MODE === "local" &&
+      allowedHosts.some((host) => !localAuthorities.has(host))
+    ) {
+      throw new Error(
+        "MCP_AUTH_MODE=local permits only loopback MCP_ALLOWED_HOSTS",
+      );
+    }
+    if (env.MCP_AUTH_MODE === "bearer" && !env.MCP_BEARER_TOKEN) {
+      throw new Error("MCP_BEARER_TOKEN is required for bearer authentication");
+    }
 
     return {
       nla: {
@@ -157,8 +201,7 @@ export const configSchema = z
         cacheEnabled: env.NLA_CACHE_ENABLED,
         cacheTtlMs: env.NLA_CACHE_TTL_MS,
         cacheMaxEntries: env.NLA_CACHE_MAX_ENTRIES,
-        enableFileWrites: env.NLA_ENABLE_FILE_WRITES,
-        downloadDir: env.NLA_DOWNLOAD_DIR,
+        cacheMaxBytes: env.NLA_CACHE_MAX_BYTES,
       },
       mcp: {
         transport: env.MCP_TRANSPORT,
@@ -166,10 +209,16 @@ export const configSchema = z
         port: env.MCP_PORT,
         allowedHosts,
         allowedOrigins,
+        authMode: env.MCP_AUTH_MODE,
+        bearerToken: env.MCP_BEARER_TOKEN,
         maxRequestBytes: env.MCP_MAX_REQUEST_BYTES,
+        bodyTimeoutMs: env.MCP_BODY_TIMEOUT_MS,
+        maxInFlight: env.MCP_MAX_IN_FLIGHT,
+        maxInFlightPerClient: env.MCP_MAX_IN_FLIGHT_PER_CLIENT,
         rateLimitWindowMs: env.MCP_RATE_LIMIT_WINDOW_MS,
         rateLimitPerClient: env.MCP_RATE_LIMIT_PER_CLIENT,
         rateLimitGlobal: env.MCP_RATE_LIMIT_GLOBAL,
+        rateLimitMaxIdentities: env.MCP_RATE_LIMIT_MAX_IDENTITIES,
         trustProxy: env.MCP_TRUST_PROXY,
       },
     };

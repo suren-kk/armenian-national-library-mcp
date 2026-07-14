@@ -7,7 +7,7 @@ import type { AppConfig } from "../config.js";
 import type { NlaContentResolver } from "../nla/content-resolver.js";
 import { decodeUtf8 } from "../nla/content-resolver.js";
 import { NlaError } from "../nla/errors.js";
-import { hasExpectedFileSignature } from "../security/content-limits.js";
+import { normalizeMimeType } from "../security/content-limits.js";
 
 function variable(variables: Variables, name: string): string {
   const value = variables[name];
@@ -30,7 +30,7 @@ export function registerBitstreamResources(
     {
       title: "NLA bitstream metadata",
       description:
-        "Verified metadata, format, access status, and download location for an NLA bitstream.",
+        "Validated metadata, declared format, access status, verification state, and download location for an NLA bitstream.",
       mimeType: "application/json",
     },
     async (uri, variables, extra) => {
@@ -56,14 +56,14 @@ export function registerBitstreamResources(
     {
       title: "NLA bitstream content",
       description:
-        "Inline content for bounded text or small binary NLA bitstreams. Large files remain available through their HTTPS download URL.",
+        "Inline content only for bounded UTF-8 plain text and signature-verified raster images. Active, complex, unknown, and large files remain available only through their HTTPS download URL.",
     },
     async (uri, variables, extra) => {
       const result = await resolver.readBitstreamContent(
         variable(variables, "uuid"),
         extra.signal,
       );
-      if (result.bitstream.mimeType.toLowerCase().startsWith("text/plain")) {
+      if (normalizeMimeType(result.bitstream.mimeType) === "text/plain") {
         const text = decodeUtf8(result.bytes);
         const characterCount = Array.from(text).length;
         if (characterCount > config.nla.maxTextChars) {
@@ -77,12 +77,6 @@ export function registerBitstreamResources(
             { uri: uri.toString(), mimeType: result.bitstream.mimeType, text },
           ],
         };
-      }
-      if (!hasExpectedFileSignature(result.bytes, result.bitstream.mimeType)) {
-        throw NlaError.invalidResponse(
-          "Bitstream bytes do not match the declared MIME type",
-          { mimeType: result.bitstream.mimeType },
-        );
       }
       return {
         contents: [

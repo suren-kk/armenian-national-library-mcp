@@ -1,7 +1,7 @@
 import { NlaError } from "../nla/errors.js";
 
 /* eslint-disable no-control-regex -- filenames containing controls are rejected */
-const UNSAFE_FILENAME = /[\\/\u0000-\u001f\u007f]/;
+const UNSAFE_FILENAME = /[\\/\u0000-\u001f\u007f]|\p{Cf}/u;
 /* eslint-enable no-control-regex */
 
 export function assertSafeFilename(filename: string): void {
@@ -57,34 +57,44 @@ export function hasExpectedFileSignature(
   bytes: Uint8Array,
   mimeType: string,
 ): boolean {
-  const mime = mimeType.split(";", 1)[0]?.trim().toLowerCase();
-  switch (mime) {
-    case "application/pdf":
-      return (
-        bytes.length >= 5 &&
-        new TextDecoder("ascii").decode(bytes.subarray(0, 5)) === "%PDF-"
-      );
-    case "image/png":
-      return (
-        bytes.length >= 8 &&
-        [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every(
-          (value, index) => bytes[index] === value,
-        )
-      );
-    case "image/jpeg":
-      return (
-        bytes.length >= 3 &&
-        bytes[0] === 0xff &&
-        bytes[1] === 0xd8 &&
-        bytes[2] === 0xff
-      );
-    case "image/gif": {
-      const signature = new TextDecoder("ascii").decode(bytes.subarray(0, 6));
-      return (
-        bytes.length >= 6 && (signature === "GIF87a" || signature === "GIF89a")
-      );
-    }
-    default:
-      return true;
+  const mime = normalizeMimeType(mimeType);
+  return detectFileMimeType(bytes) === mime;
+}
+
+export function normalizeMimeType(mimeType: string): string {
+  return (mimeType.split(";", 1)[0] ?? "").trim().toLowerCase();
+}
+
+export function isInlineMimeTypeAllowed(mimeType: string): boolean {
+  return ["text/plain", "image/png", "image/jpeg", "image/gif"].includes(
+    normalizeMimeType(mimeType),
+  );
+}
+
+export function detectFileMimeType(bytes: Uint8Array): string | null {
+  const ascii = new TextDecoder("ascii");
+  if (bytes.length >= 5 && ascii.decode(bytes.subarray(0, 5)) === "%PDF-") {
+    return "application/pdf";
   }
+  if (
+    bytes.length >= 8 &&
+    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every(
+      (value, index) => bytes[index] === value,
+    )
+  ) {
+    return "image/png";
+  }
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  ) {
+    return "image/jpeg";
+  }
+  const gif = ascii.decode(bytes.subarray(0, 6));
+  if (bytes.length >= 6 && (gif === "GIF87a" || gif === "GIF89a")) {
+    return "image/gif";
+  }
+  return null;
 }

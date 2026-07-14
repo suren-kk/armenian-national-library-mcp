@@ -83,6 +83,9 @@ export interface ResolvedBitstream {
   filename: string;
   bundle: BundleClassification;
   mimeType: string;
+  detectedMimeType: string | null;
+  mimeVerification: "declared-unverified" | "verified";
+  inlineEligible: boolean;
   sizeBytes: number;
   format: {
     id: number;
@@ -149,7 +152,6 @@ export interface NormalizedDspaceObject {
   name: string | null;
   metadata: MetadataMap;
   normalized: NormalizedMetadata;
-  links: Record<string, HalLinkValue>;
 }
 
 export interface Pagination {

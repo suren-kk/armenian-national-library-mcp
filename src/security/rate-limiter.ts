@@ -8,13 +8,14 @@ export interface RateLimitResult {
   limit: number;
   remaining: number;
   retryAfterSeconds: number;
-  scope: "client" | "global";
+  scope: "client" | "global" | "identity";
 }
 
 export interface RateLimiterOptions {
   windowMs: number;
   perClientLimit: number;
   globalLimit: number;
+  maxIdentities: number;
   now?: () => number;
 }
 
@@ -33,10 +34,14 @@ export class HttpRateLimiter {
     const global = this.currentCounter(previousGlobal, now);
     this.global = global;
     if (previousGlobal !== global) this.clients.clear();
-    const client = this.currentCounter(this.clients.get(clientId), now);
+    const existingClient = this.clients.get(clientId);
+    const client = this.currentCounter(existingClient, now);
 
     if (global.count >= this.options.globalLimit) {
       return this.denied("global", this.options.globalLimit, global, now);
+    }
+    if (!existingClient && this.clients.size >= this.options.maxIdentities) {
+      return this.denied("identity", this.options.perClientLimit, global, now);
     }
     if (client.count >= this.options.perClientLimit) {
       return this.denied("client", this.options.perClientLimit, client, now);
@@ -62,7 +67,7 @@ export class HttpRateLimiter {
   }
 
   private denied(
-    scope: "client" | "global",
+    scope: "client" | "global" | "identity",
     limit: number,
     counter: Counter,
     now: number,
