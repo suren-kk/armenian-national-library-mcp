@@ -7,6 +7,7 @@ import { NlaContentResolver } from "../nla/content-resolver.js";
 import { registerBitstreamResources } from "../resources/bitstream-resource.js";
 import { registerEndpointCatalogueResource } from "../resources/endpoint-catalogue.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
+import { SERVER_NAME, SERVER_VERSION } from "../version.js";
 
 export interface ServerDependencies {
   client?: NlaClient;
@@ -17,7 +18,7 @@ export function createServer(
   dependencies: ServerDependencies = {},
 ): McpServer {
   const server = new McpServer(
-    { name: "nla-mcp", version: "0.1.0" },
+    { name: SERVER_NAME, version: SERVER_VERSION },
     { instructions: SERVER_INSTRUCTIONS },
   );
   const client = dependencies.client ?? new NlaClient(config.nla);

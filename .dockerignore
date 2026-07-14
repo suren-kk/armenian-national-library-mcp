@@ -6,6 +6,8 @@
 node_modules
 dist
 coverage
+release/**
+artifacts/**
 *.log
 .DS_Store
 IMPLEMENTATION_PLAN.md

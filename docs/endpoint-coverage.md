@@ -31,3 +31,5 @@ npm run drift:check
 After a build, `npm run drift:check:built` performs the same check from `dist`. The checker compares relation names and normalized URLs from the live API root with the matrix. Exit code `0` means no drift, `1` means drift was found, and `2` means the check failed.
 
 Set `NLA_DRIFT_CHECK_ACCESS=true` to also issue bounded anonymous `GET` probes for non-templated records with a declared live expectation. Probes request a single result and accept at most 64 KiB. Unsupported or inconclusive probes are reported in `accessChecksSkipped`; public-to-protected and protected-to-public changes are reported as drift.
+
+Set `NLA_DRIFT_REPORT_PATH` to also write the formatted JSON report to a file; the checker continues to emit the same report on stdout. The nightly workflow uses this output in its run summary while preserving the drift exit code.

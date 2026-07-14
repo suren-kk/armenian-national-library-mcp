@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { loadConfig } from "../config.js";
 import { NlaClient } from "../nla/client.js";
 import {
@@ -22,7 +24,14 @@ async function main(): Promise<void> {
     loadEndpointRegistry(),
     { checkAccess: process.env.NLA_DRIFT_CHECK_ACCESS === "true" },
   );
-  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  const serialized = `${JSON.stringify(report, null, 2)}\n`;
+  const reportPath = process.env.NLA_DRIFT_REPORT_PATH;
+  if (reportPath) {
+    const absolutePath = resolve(reportPath);
+    mkdirSync(dirname(absolutePath), { recursive: true });
+    writeFileSync(absolutePath, serialized);
+  }
+  process.stdout.write(serialized);
   if (report.hasDrift) process.exitCode = 1;
 }
 

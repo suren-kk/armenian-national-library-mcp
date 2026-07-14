@@ -19,7 +19,42 @@ Local extraction/OCR remains outside the current server scope.
 - Node.js 24 (the repository pins `24.15.0` for asdf)
 - npm
 
-## Setup
+## Install and connect a client
+
+The npm distribution runs the stdio MCP server through `npx`; no provider-specific server build is needed. If the first tagged release is not yet available in the registry, use the source setup below.
+
+Add it to Codex:
+
+```bash
+codex mcp add nla -- npx -y @nla-am/nla-mcp@1
+```
+
+Equivalent Codex configuration:
+
+```toml
+[mcp_servers.nla]
+command = "npx"
+args = ["-y", "@nla-am/nla-mcp@1"]
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+```
+
+Add the same package to Claude Code:
+
+```bash
+claude mcp add --transport stdio nla -- \
+  npx -y @nla-am/nla-mcp@1
+```
+
+Restart or reconnect the client after adding the server. A new-user smoke flow is:
+
+1. Search for an NLA record with `search_catalog`.
+2. Pass its item identifier to `get_item_text` and follow `nextOffsetChars` when the text is chunked.
+3. Call `list_item_files` or `get_file_download` and open the canonical HTTPS download URL for the original document.
+
+Codex and Claude use the same binary, schemas, security policy, and NLA data. Only their client configuration commands differ.
+
+## Build from source
 
 ```bash
 npm install
@@ -44,7 +79,7 @@ MCP_TRANSPORT=http npm start
 
 The MCP endpoint is `http://127.0.0.1:3000/mcp`. Liveness and readiness are exposed separately at `/healthz` and `/readyz`. The HTTP profile is stateless: each request receives a fresh MCP server/transport while the bounded NLA client and cache are shared.
 
-## Client configuration
+## Other client configurations
 
 After building, a local Codex/Claude-style stdio configuration can invoke:
 
@@ -55,7 +90,7 @@ After building, a local Codex/Claude-style stdio configuration can invoke:
 }
 ```
 
-For package consumers, the CLI binary is `nla-mcp`.
+For package consumers, the CLI binary is `nla-mcp`; a global installation can invoke it directly.
 
 A remote MCP client can connect to:
 
@@ -142,6 +177,8 @@ docker compose up --build
 
 The Compose profile publishes only on `127.0.0.1:3000` by default and applies a read-only root filesystem, dropped capabilities, no-new-privileges, a small temporary filesystem, and process/resource limits. Set the public Host/Origin allowlists and place a TLS reverse proxy in front before remote deployment. See the [deployment guide](docs/deployment.md).
 
+Tagged releases also publish a versioned image to `ghcr.io/<repository-owner>/<repository-name>`. Use the exact image reference shown on the repository release page, verify its source revision label, and apply the same runtime restrictions as the Compose profile.
+
 ## Configuration
 
 See `.env.example`. The most important security boundary is the pair:
@@ -154,3 +191,10 @@ NLA_ALLOWED_HOST=api.nla.am
 All followed links and redirects must remain HTTPS on that exact host and under the configured API base path. File writes are disabled and are not implemented by this server.
 
 HTTP deployments also require explicit Host and Origin allowlists. Requests without an `Origin` header remain valid for native MCP clients; supplied origins must match exactly. `X-Forwarded-For` is ignored unless `MCP_TRUST_PROXY=true`, which should only be enabled behind a trusted proxy that sanitizes the header.
+
+## Releases and support
+
+- [Changelog](CHANGELOG.md)
+- [Release and artifact verification guide](docs/releasing.md)
+- [Support and upstream outage runbook](docs/support.md)
+- [Security reporting policy](SECURITY.md)

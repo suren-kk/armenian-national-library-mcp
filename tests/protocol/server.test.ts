@@ -21,6 +21,11 @@ describe("MCP protocol", () => {
       client.connect(clientTransport),
     ]);
 
+    expect(client.getServerVersion()).toEqual({
+      name: "nla-mcp",
+      version: "1.0.0",
+    });
+
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name)).toEqual(
       expect.arrayContaining([

@@ -1,8 +1,8 @@
 {
   "name": "@nla-am/nla-mcp",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
   "description": "Provider-neutral MCP server for the National Library of Armenia DSpace repository",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "nla-mcp": "dist/index.js"
@@ -13,8 +13,13 @@
     "docs",
     "evals",
     "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=24"
   },
@@ -26,7 +31,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "ci": "npm run format:check && npm run lint && npm run typecheck && npm run security:licenses && npm test && npm run build",
+    "ci": "npm run format:check && npm run lint && npm run typecheck && npm run release:check && npm run security:licenses && npm test && npm run build",
+    "prepack": "npm run build",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "drift:check": "tsx src/scripts/check-endpoint-drift.ts",
@@ -40,7 +46,11 @@
     "security:licenses": "node --import tsx src/scripts/check-dependency-licenses.ts",
     "security:licenses:built": "node dist/scripts/check-dependency-licenses.js",
     "security:sbom": "npm sbom --package-lock-only --omit=dev --sbom-format=cyclonedx --sbom-type=application",
-    "security:check": "npm run security:licenses && npm run security:audit"
+    "security:check": "npm run security:licenses && npm run security:audit",
+    "release:check": "node --import tsx src/scripts/check-release-metadata.ts",
+    "release:check:built": "node dist/scripts/check-release-metadata.js",
+    "release:artifacts": "node --import tsx src/scripts/build-release-artifacts.ts",
+    "release:artifacts:built": "node dist/scripts/build-release-artifacts.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",

@@ -1,0 +1,89 @@
+name: Nightly NLA compatibility
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-nla-compatibility
+  cancel-in-progress: false
+
+jobs:
+  live-and-drift:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24.15.0
+          cache: npm
+          package-manager-cache: false
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Prepare reports
+        run: mkdir -p artifacts
+      - id: live
+        name: Run live integration tests
+        continue-on-error: true
+        env:
+          NLA_LIVE_TESTS: "true"
+        run: >-
+          npm test -- tests/integration/live.test.ts
+          --reporter=json
+          --outputFile=artifacts/live-tests.json
+      - id: drift
+        name: Check API-root and anonymous-access drift
+        continue-on-error: true
+        env:
+          NLA_DRIFT_CHECK_ACCESS: "true"
+          NLA_DRIFT_REPORT_PATH: artifacts/endpoint-drift.json
+        run: npm run drift:check
+      - name: Summarize nightly checks
+        if: always()
+        env:
+          LIVE_OUTCOME: ${{ steps.live.outcome }}
+          DRIFT_OUTCOME: ${{ steps.drift.outcome }}
+        run: |
+          {
+            echo "## NLA nightly compatibility"
+            echo
+            echo "- Live integration suite: ${LIVE_OUTCOME}"
+            echo "- Endpoint/access drift: ${DRIFT_OUTCOME}"
+            echo "- Source revision: ${GITHUB_SHA}"
+            if [ -f artifacts/live-tests.json ]; then
+              echo
+              echo "<details><summary>Live integration report</summary>"
+              echo
+              echo '```json'
+              cat artifacts/live-tests.json
+              echo '```'
+              echo "</details>"
+            fi
+            if [ -f artifacts/endpoint-drift.json ]; then
+              echo
+              echo "<details><summary>Endpoint drift report</summary>"
+              echo
+              echo '```json'
+              cat artifacts/endpoint-drift.json
+              echo '```'
+              echo "</details>"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - name: Fail when either nightly gate failed
+        if: always()
+        env:
+          LIVE_OUTCOME: ${{ steps.live.outcome }}
+          DRIFT_OUTCOME: ${{ steps.drift.outcome }}
+        run: |
+          if [ "${LIVE_OUTCOME}" != "success" ] || [ "${DRIFT_OUTCOME}" != "success" ]; then
+            exit 1
+          fi

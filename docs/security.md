@@ -34,7 +34,7 @@ Operational logs contain request identifiers, fixed-origin URLs, status, counts,
 
 ### Supply chain and runtime
 
-Exact npm versions and integrity hashes are committed in `package-lock.json`. `npm run security:audit` fails on high or critical known advisories; `npm run security:licenses` fails on missing or unapproved dependency licenses. `npm run security:sbom` emits a CycloneDX application SBOM for production dependencies. The Docker build uses an exact Node version and multi-platform digest, disables dependency lifecycle scripts, prunes development dependencies, and runs as the image's unprivileged `node` user.
+Exact npm versions and integrity hashes are committed in `package-lock.json`. `npm run security:audit` fails on high or critical known advisories; `npm run security:licenses` fails on missing or unapproved dependency licenses. `npm run security:sbom` emits a CycloneDX application SBOM for production dependencies. Release automation validates tag/version consistency, publishes npm provenance, pins workflow actions to full revisions, and emits a source archive, manifest, SBOM, and SHA-256 checksums. The Docker build uses an exact Node version and multi-platform digest, disables dependency lifecycle scripts, prunes development dependencies, and runs as the image's unprivileged `node` user.
 
 The stronger runtime settings are in `compose.yaml`. A direct `docker run` deployment must apply equivalent `--read-only`, `--cap-drop=ALL`, `--security-opt=no-new-privileges`, resource-limit, and loopback/proxy settings.
 

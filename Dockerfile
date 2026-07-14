@@ -12,9 +12,16 @@ RUN npm run build && npm prune --omit=dev --ignore-scripts
 
 FROM node:24.15.0-bookworm-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS runtime
 
+ARG VERSION=dev
+ARG REVISION=unknown
+ARG SOURCE=unknown
+
 LABEL org.opencontainers.image.title="National Library of Armenia MCP" \
       org.opencontainers.image.description="Read-only MCP server for the National Library of Armenia" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="$VERSION" \
+      org.opencontainers.image.revision="$REVISION" \
+      org.opencontainers.image.source="$SOURCE"
 
 ENV NODE_ENV=production \
     MCP_TRANSPORT=http \
