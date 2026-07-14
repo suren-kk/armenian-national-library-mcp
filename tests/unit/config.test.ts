@@ -8,6 +8,7 @@ describe("configuration", () => {
     expect(config.nla.allowedHost).toBe("api.nla.am");
     expect(config.mcp.transport).toBe("stdio");
     expect(config.nla.maxPageSize).toBe(50);
+    expect(config.nla.cacheMaxEntries).toBe(128);
   });
 
   it("rejects a base URL outside the allowlisted host", () => {

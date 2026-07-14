@@ -4,6 +4,7 @@ import {
   NlaContentResolver,
   chunkUnicode,
   classifyBundle,
+  decodeUtf8,
 } from "../../src/nla/content-resolver.js";
 import { requestUrl, testConfig } from "../helpers.js";
 
@@ -17,7 +18,7 @@ function json(value: unknown): Response {
   });
 }
 
-function fixtureFetch(text = "A😀ԲC\u001b[31m") {
+function fixtureFetch(text = "A😀ԲC\u001b[31m", bitstreamTotalPages = 1) {
   // Async keeps this test double assignable to the platform fetch signature.
   // eslint-disable-next-line @typescript-eslint/require-await
   return vi.fn<typeof fetch>(async (input) => {
@@ -52,7 +53,12 @@ function fixtureFetch(text = "A😀ԲC\u001b[31m") {
           ],
         },
         _links: { self: { href: url.toString() } },
-        page: { number: 0, size: 50, totalElements: 1, totalPages: 1 },
+        page: {
+          number: 0,
+          size: 50,
+          totalElements: bitstreamTotalPages,
+          totalPages: bitstreamTotalPages,
+        },
       });
     }
     if (url.pathname.endsWith(`/core/bitstreams/${bitstreamUuid}/format`)) {
@@ -104,6 +110,12 @@ describe("content resolution", () => {
     });
   });
 
+  it("rejects malformed UTF-8 instead of inserting replacement characters", () => {
+    expect(() => decodeUtf8(new Uint8Array([0xc3, 0x28]))).toThrowError(
+      expect.objectContaining({ code: "NLA_INVALID_RESPONSE" }),
+    );
+  });
+
   it("selects NLA TEXT content, sanitizes controls, and returns continuation metadata", async () => {
     const fetchMock = fixtureFetch();
     const resolver = new NlaContentResolver(
@@ -131,6 +143,7 @@ describe("content resolution", () => {
         uri: `nla://bitstream/${bitstreamUuid}/content`,
       },
     });
+    expect(result.truncated).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 
@@ -146,6 +159,17 @@ describe("content resolution", () => {
         maxChars: 10,
       }),
     ).rejects.toMatchObject({ code: "NLA_NOT_FOUND" });
+  });
+
+  it("reports when a bundle's bitstream list is truncated", async () => {
+    const resolver = new NlaContentResolver(
+      new NlaClient(testConfig().nla, fixtureFetch("text", 2)),
+    );
+    const result = await resolver.listItemFiles(itemUuid);
+
+    expect(result.truncated).toBe(true);
+    expect(result.data[0]?.filesTruncated).toBe(true);
+    expect(result.warnings).toContain("Bitstreams in bundle TEXT were capped");
   });
 
   it("rejects oversized binary resources before downloading content", async () => {

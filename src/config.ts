@@ -32,6 +32,12 @@ export const configSchema = z
     NLA_MAX_RETRIES: z.coerce.number().int().min(0).max(8).default(3),
     NLA_CACHE_ENABLED: booleanFromString.default(true),
     NLA_CACHE_TTL_MS: z.coerce.number().int().min(0).default(30_000),
+    NLA_CACHE_MAX_ENTRIES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10_000)
+      .default(128),
     NLA_ENABLE_FILE_WRITES: booleanFromString.default(false),
     NLA_DOWNLOAD_DIR: optionalDirectory,
     MCP_TRANSPORT: z.enum(["stdio", "http"]).default("stdio"),
@@ -66,6 +72,7 @@ export const configSchema = z
         maxRetries: env.NLA_MAX_RETRIES,
         cacheEnabled: env.NLA_CACHE_ENABLED,
         cacheTtlMs: env.NLA_CACHE_TTL_MS,
+        cacheMaxEntries: env.NLA_CACHE_MAX_ENTRIES,
         enableFileWrites: env.NLA_ENABLE_FILE_WRITES,
         downloadDir: env.NLA_DOWNLOAD_DIR,
       },

@@ -6,11 +6,20 @@ import { startStdio } from "./transports/stdio.js";
 
 const logger = new Logger("startup");
 
+function loadLocalEnvironment(): void {
+  try {
+    process.loadEnvFile();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+}
+
 async function main(): Promise<void> {
+  loadLocalEnvironment();
   const config = loadConfig();
   if (config.mcp.transport !== "stdio") {
     throw new Error(
-      "Streamable HTTP is planned for Phase 6; set MCP_TRANSPORT=stdio for Phases 1–3",
+      "Streamable HTTP is not implemented; set MCP_TRANSPORT=stdio",
     );
   }
 

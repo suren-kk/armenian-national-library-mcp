@@ -59,21 +59,21 @@ function retryAfterMilliseconds(value: string | null): number | null {
 
 function wait(milliseconds: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, milliseconds);
-    if (signal) {
-      signal.addEventListener(
-        "abort",
-        () => {
-          clearTimeout(timer);
-          reject(
-            signal.reason instanceof Error
-              ? signal.reason
-              : new Error("Request aborted"),
-          );
-        },
-        { once: true },
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      reject(
+        signal?.reason instanceof Error
+          ? signal.reason
+          : new Error("Request aborted"),
       );
-    }
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, milliseconds);
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 
@@ -183,6 +183,7 @@ export class NlaClient {
         ? this.cache.get(cacheKey)
         : undefined;
     if (cached && Date.now() - cached.storedAt <= this.config.cacheTtlMs) {
+      this.touchCache(cacheKey, cached);
       return this.fromCache(cacheKey, cached);
     }
 
@@ -300,7 +301,7 @@ export class NlaClient {
               : {}),
           };
           if (method === "GET" && this.config.cacheEnabled)
-            this.cache.set(cacheKey, entry);
+            this.storeCache(cacheKey, entry);
 
           this.logger.info("upstream_request", {
             requestId,
@@ -362,6 +363,20 @@ export class NlaClient {
       contentType: cached.contentType,
       cacheHit: true,
     };
+  }
+
+  private touchCache(cacheKey: string, entry: CacheEntry): void {
+    this.cache.delete(cacheKey);
+    this.cache.set(cacheKey, entry);
+  }
+
+  private storeCache(cacheKey: string, entry: CacheEntry): void {
+    this.touchCache(cacheKey, entry);
+    while (this.cache.size > this.config.cacheMaxEntries) {
+      const oldestKey = this.cache.keys().next().value;
+      if (!oldestKey) break;
+      this.cache.delete(oldestKey);
+    }
   }
 
   private backoff(attempt: number): number {

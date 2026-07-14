@@ -5,8 +5,9 @@ import {
 import type { Variables } from "@modelcontextprotocol/sdk/shared/uriTemplate.js";
 import type { AppConfig } from "../config.js";
 import type { NlaContentResolver } from "../nla/content-resolver.js";
+import { decodeUtf8 } from "../nla/content-resolver.js";
 import { NlaError } from "../nla/errors.js";
-import { sanitizeUpstreamText } from "../security/output-sanitizer.js";
+import { hasExpectedFileSignature } from "../security/content-limits.js";
 
 function variable(variables: Variables, name: string): string {
   const value = variables[name];
@@ -63,9 +64,7 @@ export function registerBitstreamResources(
         extra.signal,
       );
       if (result.bitstream.mimeType.toLowerCase().startsWith("text/plain")) {
-        const text = sanitizeUpstreamText(
-          new TextDecoder("utf-8", { fatal: false }).decode(result.bytes),
-        );
+        const text = decodeUtf8(result.bytes);
         const characterCount = Array.from(text).length;
         if (characterCount > config.nla.maxTextChars) {
           throw NlaError.responseTooLarge(
@@ -78,6 +77,12 @@ export function registerBitstreamResources(
             { uri: uri.toString(), mimeType: result.bitstream.mimeType, text },
           ],
         };
+      }
+      if (!hasExpectedFileSignature(result.bytes, result.bitstream.mimeType)) {
+        throw NlaError.invalidResponse(
+          "Bitstream bytes do not match the declared MIME type",
+          { mimeType: result.bitstream.mimeType },
+        );
       }
       return {
         contents: [

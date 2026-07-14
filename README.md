@@ -2,7 +2,7 @@
 
 A provider-neutral, read-only Model Context Protocol server for the National Library of Armenia's DSpace 9 repository.
 
-The current implementation covers Phases 1–4 of `IMPLEMENTATION_PLAN.md`:
+The current implementation includes:
 
 - Strict TypeScript foundation with the stable official MCP SDK, validated configuration, JSON stderr logging, and stdio transport.
 - A bounded NLA HTTP/HAL client with same-origin enforcement, cancellation, timeouts, safe redirects, retry/backoff, response limits, conditional caching, actionable errors, and metadata normalization.
@@ -60,7 +60,7 @@ Identifiers accept a DSpace UUID, a handle such as `123456789/10740`, or a canon
 
 Every successful catalogue tool result uses a consistent envelope with `data`, `pagination`, `source`, `warnings`, and `truncated`. Upstream catalogue content is preserved as data, stripped of terminal control characters, and never included in server instructions.
 
-Phase 4 resource templates are:
+Content resource templates are:
 
 - `nla://bitstream/{uuid}` for bitstream metadata.
 - `nla://bitstream/{uuid}/content` for bounded text or small binary content.
@@ -94,4 +94,4 @@ NLA_API_BASE_URL=https://api.nla.am/server/api
 NLA_ALLOWED_HOST=api.nla.am
 ```
 
-All followed links and redirects must remain HTTPS on that exact host and under the configured API base path. File writes are disabled and not implemented in Phases 1–3.
+All followed links and redirects must remain HTTPS on that exact host and under the configured API base path. File writes are disabled and are not implemented by this server.

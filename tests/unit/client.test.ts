@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { NlaClient } from "../../src/nla/client.js";
 import { NlaError } from "../../src/nla/errors.js";
-import { testConfig } from "../helpers.js";
+import { requestUrl, testConfig } from "../helpers.js";
 
 describe("NLA HTTP client", () => {
   it("retries retryable responses and then parses JSON", async () => {
@@ -33,6 +33,29 @@ describe("NLA HTTP client", () => {
     const cached = await client.getJson("core/sites");
     expect(cached.cacheHit).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("evicts least-recently-used responses when the cache reaches its bound", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation((input) =>
+      Promise.resolve(
+        new Response(JSON.stringify({ url: requestUrl(input).toString() }), {
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const client = new NlaClient(
+      testConfig({
+        NLA_CACHE_ENABLED: "true",
+        NLA_CACHE_TTL_MS: "60000",
+        NLA_CACHE_MAX_ENTRIES: "1",
+      }).nla,
+      fetchMock,
+    );
+
+    await client.getJson("core/sites");
+    await client.getJson("core/communities");
+    await client.getJson("core/sites");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("maps non-retryable HTTP errors", async () => {

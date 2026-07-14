@@ -23,6 +23,7 @@ export interface BundleWithFiles {
   name: string;
   classification: BundleClassification;
   files: ResolvedBitstream[];
+  filesTruncated: boolean;
 }
 
 export interface ItemTextOptions {
@@ -101,6 +102,18 @@ export function chunkUnicode(
   };
 }
 
+export function decodeUtf8(bytes: Uint8Array): string {
+  try {
+    return sanitizeUpstreamText(
+      new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+    );
+  } catch (error) {
+    throw NlaError.invalidResponse("NLA text bitstream is not valid UTF-8", {
+      cause: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 function asBitstream(value: unknown): Bitstream {
   if (
     !isRecord(value) ||
@@ -168,20 +181,36 @@ export class NlaContentResolver {
     );
     const document = requireHalDocument(response.data);
     validatedLinks(document, this.client.urlPolicy);
+    const bundlePagination = paginationFrom(document);
     const bundles = getEmbedded<unknown>(document, "bundles").map(asBundle);
-    const resolved = await Promise.all(
-      bundles.map(async (bundle) => ({
-        uuid: bundle.uuid,
-        name: bundle.name,
-        classification: classifyBundle(bundle.name),
-        files: await this.listBundleBitstreams(bundle.uuid, signal),
-      })),
+    const bundleResults = await Promise.all(
+      bundles.map(async (bundle) => {
+        const bitstreams = await this.listBundleBitstreams(bundle.uuid, signal);
+        return {
+          uuid: bundle.uuid,
+          name: bundle.name,
+          classification: classifyBundle(bundle.name),
+          files: bitstreams.files,
+          filesTruncated: bitstreams.truncated,
+        };
+      }),
     );
+    const warnings: string[] = [];
+    if (bundlePagination?.hasNext) {
+      warnings.push(
+        `Bundle list was capped at ${bundlePagination.pageSize} entries`,
+      );
+    }
+    for (const bundle of bundleResults) {
+      if (bundle.filesTruncated) {
+        warnings.push(`Bitstreams in bundle ${bundle.name} were capped`);
+      }
+    }
     return this.envelope(
-      resolved,
-      paginationFrom(document),
+      bundleResults,
+      bundlePagination,
       response.source,
-      [],
+      warnings,
     );
   }
 
@@ -237,6 +266,16 @@ export class NlaContentResolver {
       ? textFiles.find((file) => file.uuid === options.bitstreamUuid)
       : textFiles[0];
     if (!selected) {
+      if (files.truncated) {
+        throw new NlaError(
+          "NLA_RESPONSE_TOO_LARGE",
+          "Item file listing exceeded the configured page limit before a text extraction was found",
+          {
+            pageLimit: this.client.config.maxPageSize,
+            totalBundles: files.pagination?.totalElements,
+          },
+        );
+      }
       throw new NlaError(
         "NLA_NOT_FOUND",
         options.bitstreamUuid
@@ -268,14 +307,12 @@ export class NlaContentResolver {
         },
       );
     }
-    const decoded = sanitizeUpstreamText(
-      new TextDecoder("utf-8", { fatal: false }).decode(content.data),
-    );
+    const decoded = decodeUtf8(content.data);
     const chunk = chunkUnicode(decoded, options.offsetChars, maximumChars);
-    const warnings =
-      options.maxChars > maximumChars
-        ? [`max_chars was capped at ${maximumChars}`]
-        : [];
+    const warnings = [...files.warnings];
+    if (options.maxChars > maximumChars) {
+      warnings.push(`max_chars was capped at ${maximumChars}`);
+    }
     return this.envelope(
       {
         itemUuid: options.itemUuid,
@@ -300,6 +337,7 @@ export class NlaContentResolver {
       null,
       content.source,
       warnings,
+      chunk.nextOffset !== null || warnings.length > 0,
     );
   }
 
@@ -342,7 +380,7 @@ export class NlaContentResolver {
   private async listBundleBitstreams(
     bundleUuid: string,
     signal?: AbortSignal,
-  ): Promise<ResolvedBitstream[]> {
+  ): Promise<{ files: ResolvedBitstream[]; truncated: boolean }> {
     const response = await this.client.getJson<unknown>(
       `core/bundles/${bundleUuid}/bitstreams`,
       {
@@ -352,10 +390,11 @@ export class NlaContentResolver {
     );
     const document = requireHalDocument(response.data);
     validatedLinks(document, this.client.urlPolicy);
+    const pagination = paginationFrom(document);
     const bitstreams = getEmbedded<unknown>(document, "bitstreams").map(
       asBitstream,
     );
-    return Promise.all(
+    const files = await Promise.all(
       bitstreams.map(async (bitstream) => {
         const [formatResponse, accessResponse] = await Promise.all([
           this.client.getJson<unknown>(
@@ -374,6 +413,7 @@ export class NlaContentResolver {
         );
       }),
     );
+    return { files, truncated: pagination?.hasNext ?? false };
   }
 
   private resolveBitstream(
@@ -420,13 +460,14 @@ export class NlaContentResolver {
     pagination: Pagination | null,
     source: Source,
     warnings: string[],
+    truncated = warnings.length > 0,
   ): Envelope<T> {
     return {
       data,
       pagination,
       source,
       warnings,
-      truncated: warnings.length > 0,
+      truncated,
     };
   }
 }
