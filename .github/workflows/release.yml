@@ -37,6 +37,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Run release gates
         run: npm run ci
+      - name: Scan dependency advisories
+        run: npm run security:audit
       - name: Build checksummed release artifacts
         run: |
           npm run release:artifacts

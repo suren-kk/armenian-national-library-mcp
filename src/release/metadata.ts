@@ -9,9 +9,7 @@ export interface ReleaseMetadataInput {
 
 const stableSemver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
-function objectValue(
-  value: unknown,
-): Record<string, unknown> | undefined {
+function objectValue(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
@@ -48,14 +46,16 @@ export function releaseMetadataIssues({
   if (lockManifest.name !== packageManifest.name) {
     issues.push("package-lock.json name does not match package.json");
   }
-  const rootLockPackage = objectValue(
-    objectValue(lockManifest.packages)?.[""],
-  );
+  const rootLockPackage = objectValue(objectValue(lockManifest.packages)?.[""]);
   if (rootLockPackage?.version !== version) {
-    issues.push("package-lock.json root package version does not match package.json");
+    issues.push(
+      "package-lock.json root package version does not match package.json",
+    );
   }
   if (rootLockPackage?.name !== packageManifest.name) {
-    issues.push("package-lock.json root package name does not match package.json");
+    issues.push(
+      "package-lock.json root package name does not match package.json",
+    );
   }
   if (packageManifest.private === true) {
     issues.push("package.json must not be private for a public release");
@@ -65,7 +65,9 @@ export function releaseMetadataIssues({
   }
   const publishConfig = objectValue(packageManifest.publishConfig);
   if (publishConfig?.access !== "public") {
-    issues.push("publishConfig.access must be public for the scoped npm package");
+    issues.push(
+      "publishConfig.access must be public for the scoped npm package",
+    );
   }
   const bin = objectValue(packageManifest.bin);
   if (bin?.["nla-mcp"] !== "dist/index.js") {

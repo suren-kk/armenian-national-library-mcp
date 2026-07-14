@@ -34,7 +34,7 @@ Operational logs contain request identifiers, fixed-origin URLs, status, counts,
 
 ### Supply chain and runtime
 
-Exact npm versions and integrity hashes are committed in `package-lock.json`. `npm run security:audit` fails on high or critical known advisories; `npm run security:licenses` fails on missing or unapproved dependency licenses. `npm run security:sbom` emits a CycloneDX application SBOM for production dependencies. Release automation validates tag/version consistency, publishes npm provenance, pins workflow actions to full revisions, and emits a source archive, manifest, SBOM, and SHA-256 checksums. The Docker build uses an exact Node version and multi-platform digest, disables dependency lifecycle scripts, prunes development dependencies, and runs as the image's unprivileged `node` user.
+Exact npm versions and integrity hashes are committed in `package-lock.json`. `npm run security:audit` fails on high or critical known advisories in pull-request, branch, and release workflows; `npm run security:licenses` fails on missing or unapproved dependency licenses. `npm run security:sbom` emits a CycloneDX application SBOM for production dependencies. Dependabot opens weekly, separately reviewable npm, Docker, and GitHub Actions update pull requests, which run the same CI gates. Release automation validates tag/version consistency, publishes npm provenance, pins workflow actions to full revisions, and emits a source archive, manifest, SBOM, and SHA-256 checksums. The Docker build uses an exact Node version and multi-platform digest, disables dependency lifecycle scripts, prunes development dependencies, and runs as the image's unprivileged `node` user.
 
 The stronger runtime settings are in `compose.yaml`. A direct `docker run` deployment must apply equivalent `--read-only`, `--cap-drop=ALL`, `--security-opt=no-new-privileges`, resource-limit, and loopback/proxy settings.
 
@@ -61,3 +61,7 @@ docker compose config --quiet
 ```
 
 Review and regenerate the base-image digest, advisory result, license allowlist, and SBOM whenever dependencies or the Node image change.
+
+Automated update pull requests are maintenance proposals, not trusted changes. Review lockfile and action/container revision changes, confirm the upstream release and license, and require CI before merging. Major updates remain separate so runtime, protocol, and security-boundary changes receive explicit review.
+
+The repository host must have Dependabot alerts and security updates enabled. The committed configuration schedules version updates against the repository's default branch without overriding `target-branch`, so host-generated security updates retain their default-branch behavior.

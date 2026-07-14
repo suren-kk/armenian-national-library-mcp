@@ -26,8 +26,6 @@ export function digestArtifacts(
     .map((filename) => digestArtifact(resolve(directory, filename)));
 }
 
-export function formatSha256Sums(
-  artifacts: readonly ArtifactDigest[],
-): string {
+export function formatSha256Sums(artifacts: readonly ArtifactDigest[]): string {
   return `${artifacts.map(({ file, sha256 }) => `${sha256}  ${file}`).join("\n")}\n`;
 }

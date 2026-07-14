@@ -4,6 +4,10 @@ All notable changes to this project are documented here. Releases follow [Semant
 
 ## [Unreleased]
 
+### Security
+
+- Added weekly npm, container, and GitHub Actions dependency updates with immutable-action enforcement and advisory scans in pull-request and release workflows.
+
 ## [1.0.0] - 2026-07-14
 
 ### Added

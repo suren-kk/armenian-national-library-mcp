@@ -32,3 +32,5 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Run deterministic release gates
         run: npm run ci
+      - name: Scan dependency advisories
+        run: npm run security:audit
