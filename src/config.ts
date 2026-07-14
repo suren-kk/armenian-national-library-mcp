@@ -3,6 +3,7 @@ import {
   normalizeHostAuthority,
   normalizeOrigin,
 } from "./security/http-request-policy.js";
+import { NLA_API_HOST } from "./security/url-policy.js";
 
 const booleanFromString = z
   .enum(["true", "false"])
@@ -43,7 +44,7 @@ function normalizedValues(
 export const configSchema = z
   .object({
     NLA_API_BASE_URL: z.url().default("https://api.nla.am/server/api"),
-    NLA_ALLOWED_HOST: z.string().min(1).default("api.nla.am"),
+    NLA_ALLOWED_HOST: z.literal(NLA_API_HOST).default(NLA_API_HOST),
     NLA_HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
     NLA_MAX_PAGE_SIZE: z.coerce.number().int().min(1).max(200).default(50),
     NLA_MAX_METADATA_BYTES: z.coerce

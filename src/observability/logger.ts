@@ -7,11 +7,24 @@ export interface LogFields {
 const REDACTED_KEYS =
   /authorization|cookie|token|secret|password|documentText|fileBytes/i;
 
+function redact(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((entry) => redact(entry));
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        REDACTED_KEYS.test(key) ? "[REDACTED]" : redact(entry),
+      ]),
+    );
+  }
+  return value;
+}
+
 function sanitize(fields: LogFields): LogFields {
   return Object.fromEntries(
     Object.entries(fields).map(([key, value]) => [
       key,
-      REDACTED_KEYS.test(key) ? "[REDACTED]" : value,
+      REDACTED_KEYS.test(key) ? "[REDACTED]" : redact(value),
     ]),
   );
 }

@@ -44,3 +44,13 @@ curl --fail http://127.0.0.1:3000/readyz
 ```
 
 Readiness returns `503` when the configured NLA API is unavailable. Do not expose the Node listener directly to the public internet; use the proxy for TLS, connection limits, access logs, and any future authentication layer.
+
+## Container runtime
+
+`Dockerfile` uses a digest-pinned Node base and runs as the unprivileged `node` user. `compose.yaml` supplies controls that cannot be encoded in an image: a read-only root filesystem, all Linux capabilities dropped, no-new-privileges, PID/memory/CPU limits, a constrained temporary filesystem, and loopback-only port publishing.
+
+```bash
+docker compose up --build
+```
+
+For a proxy deployment, override `MCP_ALLOWED_HOSTS`, `MCP_ALLOWED_ORIGINS`, and `MCP_TRUST_PROXY` deliberately. Keep the application port private; publish the proxy rather than changing `MCP_BIND_ADDRESS` unless the surrounding network provides equivalent isolation. Direct `docker run` users must reproduce the Compose security options.

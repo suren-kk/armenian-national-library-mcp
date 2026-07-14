@@ -1,6 +1,7 @@
 import { NlaError } from "../nla/errors.js";
 
-const ENCODED_TRAVERSAL = /%(?:2e|5c)/i;
+const ENCODED_UNSAFE_PATH = /%(?:00|23|25|2e|2f|3f|5c)/i;
+export const NLA_API_HOST = "api.nla.am";
 
 export class UrlPolicy {
   readonly baseUrl: URL;
@@ -9,15 +10,21 @@ export class UrlPolicy {
     baseUrl: string,
     private readonly allowedHost: string,
   ) {
+    if (allowedHost !== NLA_API_HOST) {
+      throw NlaError.invalidResponse(
+        `The upstream host is fixed to ${NLA_API_HOST}`,
+      );
+    }
     this.baseUrl = new URL(baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
     this.assertAllowed(this.baseUrl);
   }
 
   resolve(pathOrUrl: string): URL {
+    const pathOnly = pathOrUrl.split(/[?#]/, 1)[0] ?? pathOrUrl;
     if (
       pathOrUrl.startsWith("//") ||
       pathOrUrl.includes("\\") ||
-      ENCODED_TRAVERSAL.test(pathOrUrl)
+      ENCODED_UNSAFE_PATH.test(pathOnly)
     ) {
       throw NlaError.invalidResponse("Rejected unsafe upstream path");
     }
@@ -30,6 +37,12 @@ export class UrlPolicy {
   }
 
   assertAllowed(url: URL): void {
+    if (ENCODED_UNSAFE_PATH.test(url.pathname)) {
+      throw NlaError.invalidResponse(
+        "Upstream URL contains unsafe path encoding",
+      );
+    }
+
     if (
       url.protocol !== "https:" ||
       url.hostname !== this.allowedHost ||

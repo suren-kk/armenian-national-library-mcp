@@ -1,4 +1,5 @@
 import { sanitizeUpstreamText } from "../security/output-sanitizer.js";
+import { assertSafeFilename } from "../security/content-limits.js";
 import type { NlaClient } from "./client.js";
 import { NlaError } from "./errors.js";
 import { getEmbedded, requireHalDocument, validatedLinks } from "./hal.js";
@@ -120,10 +121,14 @@ function asBitstream(value: unknown): Bitstream {
     value.type !== "bitstream" ||
     typeof value.uuid !== "string" ||
     typeof value.name !== "string" ||
-    typeof value.sizeBytes !== "number"
+    typeof value.sizeBytes !== "number" ||
+    !Number.isSafeInteger(value.sizeBytes) ||
+    value.sizeBytes < 0
   ) {
     throw NlaError.invalidResponse("Malformed DSpace bitstream record");
   }
+  assertUuid(value.uuid, "Bitstream UUID");
+  assertSafeFilename(value.name);
   return value as unknown as Bitstream;
 }
 
@@ -138,6 +143,7 @@ function asBundle(
   ) {
     throw NlaError.invalidResponse("Malformed DSpace bundle record");
   }
+  assertUuid(value.uuid, "Bundle UUID");
   return value as unknown as DspaceObject & { uuid: string; name: string };
 }
 

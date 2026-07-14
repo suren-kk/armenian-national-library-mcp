@@ -25,11 +25,16 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "ci": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
+    "ci": "npm run format:check && npm run lint && npm run typecheck && npm run security:licenses && npm test && npm run build",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "drift:check": "tsx src/scripts/check-endpoint-drift.ts",
-    "drift:check:built": "node dist/scripts/check-endpoint-drift.js"
+    "drift:check:built": "node dist/scripts/check-endpoint-drift.js",
+    "security:audit": "npm audit --audit-level=high",
+    "security:licenses": "node --import tsx src/scripts/check-dependency-licenses.ts",
+    "security:licenses:built": "node dist/scripts/check-dependency-licenses.js",
+    "security:sbom": "npm sbom --package-lock-only --omit=dev --sbom-format=cyclonedx --sbom-type=application",
+    "security:check": "npm run security:licenses && npm run security:audit"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",

@@ -1,5 +1,21 @@
 import { NlaError } from "../nla/errors.js";
 
+/* eslint-disable no-control-regex -- filenames containing controls are rejected */
+const UNSAFE_FILENAME = /[\\/\u0000-\u001f\u007f]/;
+/* eslint-enable no-control-regex */
+
+export function assertSafeFilename(filename: string): void {
+  if (
+    filename === "" ||
+    filename === "." ||
+    filename === ".." ||
+    filename.trim() !== filename ||
+    UNSAFE_FILENAME.test(filename)
+  ) {
+    throw NlaError.invalidResponse("NLA returned an unsafe filename");
+  }
+}
+
 export async function readResponseBytes(
   response: Response,
   maximumBytes: number,

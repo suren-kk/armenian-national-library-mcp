@@ -29,8 +29,16 @@ function validateLink(
   if (!isRecord(value) || typeof value.href !== "string") {
     throw NlaError.invalidResponse("Malformed HAL link");
   }
-  if (!value.templated)
-    policy.assertAllowed(new URL(value.href, policy.baseUrl));
+  const templateStart = value.href.indexOf("{");
+  if (
+    (value.templated === true && templateStart <= 0) ||
+    (value.templated !== true && templateStart >= 0)
+  ) {
+    throw NlaError.invalidResponse("Malformed or unsafe HAL URI template");
+  }
+  const concretePrefix =
+    templateStart >= 0 ? value.href.slice(0, templateStart) : value.href;
+  policy.assertAllowed(new URL(concretePrefix, policy.baseUrl));
 }
 
 export function validatedLinks(

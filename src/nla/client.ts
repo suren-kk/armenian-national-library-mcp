@@ -57,6 +57,15 @@ function retryAfterMilliseconds(value: string | null): number | null {
   return Number.isNaN(date) ? null : Math.max(0, date - Date.now());
 }
 
+function urlForLog(url: URL, policy: UrlPolicy): string {
+  try {
+    policy.assertAllowed(url);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return "[REJECTED]";
+  }
+}
+
 function wait(milliseconds: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const onAbort = () => {
@@ -306,7 +315,7 @@ export class NlaClient {
           this.logger.info("upstream_request", {
             requestId,
             method,
-            url: url.toString(),
+            url: urlForLog(url, this.urlPolicy),
             status: response.status,
             retries,
             redirects,
@@ -326,7 +335,7 @@ export class NlaClient {
         this.logger.warn("upstream_request_failed", {
           requestId,
           method,
-          url: url.toString(),
+          url: urlForLog(url, this.urlPolicy),
           retries,
           redirects,
           durationMs: Math.round(performance.now() - startedAt),

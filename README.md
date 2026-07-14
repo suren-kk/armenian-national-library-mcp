@@ -111,6 +111,26 @@ The live tests verify the API root, endpoint coverage, a controlled raw read, Di
 
 See `docs/endpoint-coverage.md` for the matrix fields, security policy, and drift-check behavior.
 
+Security and supply-chain checks are available separately because the advisory scan requires network access:
+
+```bash
+npm run security:licenses
+npm run security:audit
+npm run security:sbom > sbom.cdx.json
+```
+
+The SBOM command emits CycloneDX JSON for production dependencies. See the [security model](docs/security.md) for trust boundaries, mitigations, and residual risks.
+
+## Container
+
+The image uses a digest-pinned Node base, installs from the lockfile without lifecycle scripts, contains production dependencies only, and runs as a non-root user. Start the hardened local HTTP profile with:
+
+```bash
+docker compose up --build
+```
+
+The Compose profile publishes only on `127.0.0.1:3000` by default and applies a read-only root filesystem, dropped capabilities, no-new-privileges, a small temporary filesystem, and process/resource limits. Set the public Host/Origin allowlists and place a TLS reverse proxy in front before remote deployment. See the [deployment guide](docs/deployment.md).
+
 ## Configuration
 
 See `.env.example`. The most important security boundary is the pair:
