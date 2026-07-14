@@ -29,7 +29,7 @@ describe("MCP protocol", () => {
         "resolve_identifier",
       ]),
     );
-    expect(tools.tools).toHaveLength(21);
+    expect(tools.tools).toHaveLength(23);
 
     const result = await client.callTool({
       name: "get_repository_info",
@@ -40,5 +40,24 @@ describe("MCP protocol", () => {
       profile: "public-read",
     });
     expect(result.isError).not.toBe(true);
+
+    const capabilities = await client.callTool({
+      name: "get_api_capabilities",
+      arguments: { include_endpoints: false },
+    });
+    expect(capabilities.structuredContent).toMatchObject({
+      data: { profile: "public-read", summary: { totalRelations: 80 } },
+    });
+    const rawAllowedPaths = (
+      capabilities.structuredContent as {
+        data?: { rawAllowedPaths?: unknown };
+      }
+    ).data?.rawAllowedPaths;
+    expect(rawAllowedPaths).toEqual(
+      expect.arrayContaining(["/dso/find", "/pid/find"]),
+    );
+    expect(rawAllowedPaths).not.toEqual(
+      expect.arrayContaining(["/dso/find{?uuid}", "/pid/find{?id}"]),
+    );
   });
 });

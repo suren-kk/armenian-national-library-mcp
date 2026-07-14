@@ -86,6 +86,22 @@ describe("MCP content resources", () => {
         "nla://item/{uuid}/text",
       ]),
     );
+    const resources = await client.listResources();
+    expect(resources.resources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ uri: "nla://api/endpoints" }),
+      ]),
+    );
+    const catalogue = await client.readResource({ uri: "nla://api/endpoints" });
+    const catalogueContent = catalogue.contents[0];
+    expect(catalogueContent && "text" in catalogueContent).toBe(true);
+    const catalogueText =
+      catalogueContent && "text" in catalogueContent
+        ? catalogueContent.text
+        : "{}";
+    expect(JSON.parse(catalogueText)).toMatchObject({
+      data: { summary: { totalRelations: 80 } },
+    });
     const result = await client.readResource({
       uri: `nla://bitstream/${bitstreamUuid}/content`,
     });

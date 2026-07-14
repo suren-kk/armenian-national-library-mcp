@@ -11,6 +11,7 @@ import { capabilitySummary } from "../server/capabilities.js";
 import {
   browseCatalogInput,
   bitstreamInput,
+  apiCapabilitiesInput,
   collectionItemsInput,
   communityChildrenInput,
   identifierInput,
@@ -19,6 +20,7 @@ import {
   pagedInput,
   searchCatalogInput,
   searchFacetsInput,
+  rawApiGetInput,
   uuidInput,
 } from "../schemas/inputs.js";
 import { healthOutput, toolEnvelopeOutput } from "../schemas/outputs.js";
@@ -307,5 +309,33 @@ export function registerTools(
     "Resolve a DSpace UUID, handle such as 123456789/10740, or canonical https://dspace.nla.am/handle URL. Arbitrary URLs are rejected. Read-only; returns untrusted repository metadata.",
     identifierInput,
     (args, signal) => repository.resolveIdentifier(args.identifier, signal),
+  );
+
+  registerEnvelopeTool(
+    server,
+    "get_api_capabilities",
+    "Describe endpoint coverage, access/risk classifications, semantic tool mappings, and paths approved for controlled raw reads. Use when a semantic tool does not cover an operation. Read-only; set include_endpoints for the full catalogue.",
+    apiCapabilitiesInput,
+    (args) =>
+      Promise.resolve(repository.getApiCapabilities(args.include_endpoints)),
+  );
+
+  registerEnvelopeTool(
+    server,
+    "nla_api_get",
+    "Perform a controlled anonymous GET or HEAD against an endpoint approved by the NLA registry. Use only when no semantic tool fits. Accepts API-relative paths, bounded query/pagination, and JSON or plain-text responses; arbitrary URLs, mutation methods, caller headers, traversal, and bitstream content are rejected.",
+    rawApiGetInput,
+    (args, signal) =>
+      repository.rawApiGet(
+        {
+          method: args.method,
+          path: args.path,
+          query: args.query,
+          page: args.page,
+          pageSize: args.page_size,
+          maxResponseBytes: args.max_response_bytes,
+        },
+        signal,
+      ),
   );
 }

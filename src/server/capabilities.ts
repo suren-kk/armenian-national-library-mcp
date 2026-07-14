@@ -20,6 +20,8 @@ export function capabilitySummary(config: AppConfig) {
       "nla-extracted-text-chunking",
       "bitstream-resources",
       "original-file-download-links",
+      "endpoint-coverage-catalogue",
+      "controlled-raw-api-reads",
     ],
   };
 }

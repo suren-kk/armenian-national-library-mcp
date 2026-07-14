@@ -54,4 +54,25 @@ describe.skipIf(!live)("live NLA smoke tests", () => {
     expect(original?.downloadUrl).toContain("/core/bitstreams/");
     expect(original?.downloadUrl.endsWith("/content")).toBe(true);
   });
+
+  it("matches the live endpoint root and supports a controlled raw read", async () => {
+    const drift = await repository.checkEndpointDrift(false);
+    expect(drift).toMatchObject({
+      registryRelations: 80,
+      advertisedRelations: 80,
+      hasDrift: false,
+    });
+
+    const raw = await repository.rawApiGet({
+      method: "GET",
+      path: "/core/communities",
+      query: {},
+      page: 0,
+      pageSize: 1,
+    });
+    expect(raw.data).toMatchObject({ status: 200 });
+    const contentType = (raw.data as { contentType?: unknown }).contentType;
+    expect(contentType).toEqual(expect.stringContaining("json"));
+    expect(raw.pagination?.pageSize).toBe(1);
+  });
 });

@@ -64,3 +64,50 @@ export const communityChildrenInput = z.object({
   page: pageSchema,
   page_size: pageSizeSchema,
 });
+
+export const apiCapabilitiesInput = z.object({
+  include_endpoints: z.boolean().default(false),
+});
+
+const rawQueryValue = z.union([
+  z.string().max(2_000),
+  z.number().finite(),
+  z.boolean(),
+  z.array(z.string().max(2_000)).max(20),
+]);
+
+export const rawApiGetInput = z
+  .object({
+    method: z.enum(["GET", "HEAD"]).default("GET"),
+    path: z.string().min(1).max(500),
+    query: z.record(z.string(), rawQueryValue).default({}),
+    page: z.number().int().min(0).optional(),
+    page_size: z.number().int().min(1).optional(),
+    max_response_bytes: z.number().int().min(1).optional(),
+  })
+  .superRefine((value, context) => {
+    const entries = Object.entries(value.query);
+    if (entries.length > 30) {
+      context.addIssue({
+        code: "custom",
+        message: "query may contain at most 30 parameters",
+        path: ["query"],
+      });
+    }
+    for (const [key] of entries) {
+      if (!/^[A-Za-z0-9_.-]+$/.test(key)) {
+        context.addIssue({
+          code: "custom",
+          message: `unsupported query parameter name: ${key}`,
+          path: ["query", key],
+        });
+      }
+      if (key === "page" || key === "size") {
+        context.addIssue({
+          code: "custom",
+          message: `use the top-level ${key === "size" ? "page_size" : "page"} field`,
+          path: ["query", key],
+        });
+      }
+    }
+  });

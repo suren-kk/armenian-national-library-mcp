@@ -1,6 +1,7 @@
 import {
   getEmbedded,
   getEmbeddedObject,
+  isHalDocument,
   requireHalDocument,
   validatedLinks,
 } from "./hal.js";
@@ -18,7 +19,17 @@ import type { NlaClient } from "./client.js";
 import {
   NlaContentResolver,
   type BundleWithFiles,
+  decodeUtf8,
 } from "./content-resolver.js";
+import {
+  checkEndpointRegistryDrift,
+  concreteEndpointPath,
+  loadEndpointRegistry,
+  summarizeEndpointRegistry,
+  type EndpointRecord,
+} from "./endpoint-registry.js";
+import { assertRawApiPath } from "../security/raw-api-policy.js";
+import { sanitizeUnknown } from "../security/output-sanitizer.js";
 
 export interface SearchFilter {
   field: string;
@@ -70,6 +81,7 @@ export class NlaRepository {
   constructor(
     private readonly client: NlaClient,
     content?: NlaContentResolver,
+    readonly endpoints: readonly EndpointRecord[] = loadEndpointRegistry(),
   ) {
     this.content = content ?? new NlaContentResolver(client);
   }
@@ -340,6 +352,145 @@ export class NlaRepository {
 
   getFileDownload(uuid: string, signal?: AbortSignal) {
     return this.content.getFileDownload(uuid, signal);
+  }
+
+  getApiCapabilities(includeEndpoints: boolean): Envelope<unknown> {
+    const rawPaths = this.endpoints
+      .filter((record) => record.rawAllowed)
+      .map((record) => concreteEndpointPath(record.path));
+    return this.envelope(
+      {
+        profile: "public-read",
+        allowedMethods: ["GET", "HEAD"],
+        mutationAllowed: false,
+        arbitraryUrlsAllowed: false,
+        bitstreamContentViaRawApi: false,
+        summary: summarizeEndpointRegistry(this.endpoints),
+        rawAllowedPaths: rawPaths,
+        ...(includeEndpoints ? { endpoints: this.endpoints } : {}),
+      },
+      null,
+      {
+        repository: "National Library of Armenia",
+        url: this.client.config.apiBaseUrl,
+        retrievedAt: new Date().toISOString(),
+      },
+      [],
+    );
+  }
+
+  checkEndpointDrift(checkAccess = false, signal?: AbortSignal) {
+    return checkEndpointRegistryDrift(this.client, this.endpoints, {
+      checkAccess,
+      signal,
+    });
+  }
+
+  async rawApiGet(
+    options: {
+      method: "GET" | "HEAD";
+      path: string;
+      query: Record<
+        string,
+        string | number | boolean | readonly string[] | undefined
+      >;
+      page?: number | undefined;
+      pageSize?: number | undefined;
+      maxResponseBytes?: number | undefined;
+    },
+    signal?: AbortSignal,
+  ): Promise<Envelope<unknown>> {
+    assertRawApiPath(options.path, this.endpoints);
+    const pageSize =
+      options.pageSize === undefined
+        ? undefined
+        : Math.min(options.pageSize, this.client.config.maxPageSize);
+    const maximumBytes = Math.min(
+      options.maxResponseBytes ?? this.client.config.maxMetadataBytes,
+      this.client.config.maxMetadataBytes,
+    );
+    const query = {
+      ...options.query,
+      ...(options.page !== undefined ? { page: options.page } : {}),
+      ...(pageSize !== undefined ? { size: pageSize } : {}),
+    };
+    const path = options.path === "/" ? "" : options.path;
+    const warnings: string[] = [];
+    if (
+      options.pageSize !== undefined &&
+      options.pageSize > this.client.config.maxPageSize
+    ) {
+      warnings.push(`page_size was capped at ${pageSize}`);
+    }
+    if (
+      options.maxResponseBytes !== undefined &&
+      options.maxResponseBytes > maximumBytes
+    ) {
+      warnings.push(`max_response_bytes was capped at ${maximumBytes}`);
+    }
+    if (options.method === "HEAD") {
+      const response = await this.client.head(path, { query, signal });
+      return this.envelope(
+        {
+          method: "HEAD",
+          path: options.path,
+          status: response.status,
+          contentType: response.contentType,
+          body: null,
+        },
+        null,
+        response.source,
+        warnings,
+      );
+    }
+    const response = await this.client.getBytes(path, {
+      query,
+      signal,
+      maxResponseBytes: maximumBytes,
+      headers: { Accept: "application/hal+json, application/json, text/plain" },
+    });
+    const contentType = (response.contentType.split(";", 1)[0] ?? "")
+      .trim()
+      .toLowerCase();
+    const isJson =
+      contentType === "application/json" || contentType.endsWith("+json");
+    let body: unknown;
+    if (isJson) {
+      try {
+        body = sanitizeUnknown(
+          JSON.parse(
+            new TextDecoder("utf-8", { fatal: true }).decode(response.data),
+          ) as unknown,
+        );
+      } catch (error) {
+        throw NlaError.invalidResponse(
+          "Raw NLA endpoint returned malformed JSON",
+          {
+            cause: error instanceof Error ? error.message : String(error),
+          },
+        );
+      }
+    } else if (contentType.startsWith("text/plain")) {
+      body = decodeUtf8(response.data);
+    } else {
+      throw NlaError.invalidResponse(
+        "nla_api_get only returns JSON or plain text; use content tools for files",
+        { contentType: response.contentType },
+      );
+    }
+    const document = isHalDocument(body) ? body : null;
+    return this.envelope(
+      {
+        method: "GET",
+        path: options.path,
+        status: response.status,
+        contentType: response.contentType,
+        body,
+      },
+      document ? paginationFrom(document) : null,
+      response.source,
+      warnings,
+    );
   }
 
   async resolveIdentifier(

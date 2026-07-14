@@ -9,6 +9,7 @@
   },
   "files": [
     "dist",
+    "config",
     "docs",
     "README.md",
     "LICENSE"
@@ -26,10 +27,13 @@
     "test:watch": "vitest",
     "ci": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "drift:check": "tsx src/scripts/check-endpoint-drift.ts",
+    "drift:check:built": "node dist/scripts/check-endpoint-drift.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
+    "yaml": "2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {

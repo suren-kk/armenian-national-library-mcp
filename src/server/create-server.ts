@@ -5,6 +5,7 @@ import { NlaRepository } from "../nla/repository.js";
 import { registerTools } from "../tools/register-tools.js";
 import { NlaContentResolver } from "../nla/content-resolver.js";
 import { registerBitstreamResources } from "../resources/bitstream-resource.js";
+import { registerEndpointCatalogueResource } from "../resources/endpoint-catalogue.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
 
 export interface ServerDependencies {
@@ -24,5 +25,6 @@ export function createServer(
   const repository = new NlaRepository(client, content);
   registerTools(server, repository, config);
   registerBitstreamResources(server, content, config);
+  registerEndpointCatalogueResource(server, repository);
   return server;
 }
