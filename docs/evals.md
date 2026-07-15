@@ -75,18 +75,11 @@ The command uses the clients' existing authentication, so it can contact the pro
 
 The deterministic compatibility test additionally initializes SDK clients named `codex-cli` and `claude-code` and asserts that their tools, schemas, resources, and health output are identical.
 
-## Recorded baseline
+## Release baseline status
 
-`evals/baselines/client-compatibility-2026-07-14.json` records the first real-client stdio baseline:
+No current real-client baseline is committed. The earlier smoke record was removed because it came from a dirty pre-release tree before the final package/server rename and schema hardening. Run compatibility and full agent evaluation on one clean release candidate whenever tools, schemas, instructions, defaults, MCP SDK, client versions, or public identity change; retain only the reviewed same-revision result.
 
-| Provider family | Client              | Result | Tool calls | Schema | Grounded answer |
-| --------------- | ------------------- | -----: | ---------: | -----: | --------------: |
-| OpenAI          | Codex CLI 0.144.2   |   Pass |          1 |   100% |            100% |
-| Anthropic       | Claude Code 2.1.208 |   Pass |          1 |   100% |            100% |
-
-The baseline records the base commit and whether the evaluated working tree had uncommitted changes. Token counts include each client's own system and tool-discovery context and varied materially between repeated smoke runs, so compare output tuning with controlled task-level traces rather than treating this health check as a token benchmark.
-
-This baseline proves protocol/client interoperability, not full corpus quality. A release-qualifying agent baseline must include every corpus case for both families and pass `eval:score`. Re-run compatibility and agent baselines whenever tools, schemas, instructions, defaults, MCP SDK, or client versions change.
+A compatibility smoke proves protocol/client interoperability, not full corpus quality. A release-qualifying agent baseline must include every corpus case for both provider families and pass `eval:score`. Token counts include each client's own system and tool-discovery context and may vary materially between repeated smoke runs, so compare output tuning with controlled task-level traces rather than treating the health check as a token benchmark.
 
 ## Output tuning policy
 

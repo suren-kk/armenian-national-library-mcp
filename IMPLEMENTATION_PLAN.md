@@ -80,7 +80,7 @@ Use separate profiles:
 ## 3. Proposed repository structure
 
 ```text
-nla-mcp/
+armenian-national-library-mcp/
 ├── package.json
 ├── tsconfig.json
 ├── eslint.config.js
@@ -905,17 +905,17 @@ Optional OpenTelemetry metrics:
 
 Publish:
 
-- npm package with a CLI binary such as `nla-mcp`.
+- npm package `@suren-kk/armenian-national-library-mcp` with the `armenian-national-library-mcp` CLI binary.
 - Docker image.
 - Source repository releases with checksums.
-- Optional hosted Streamable HTTP deployment.
+- Optional self-hosted/private-boundary Streamable HTTP deployment; no project-operated public endpoint is planned.
 
 ### Codex stdio example
 
 ```toml
 [mcp_servers.nla]
 command = "npx"
-args = ["-y", "@your-scope/nla-mcp"]
+args = ["-y", "@suren-kk/armenian-national-library-mcp"]
 startup_timeout_sec = 20
 tool_timeout_sec = 60
 ```
@@ -923,14 +923,14 @@ tool_timeout_sec = 60
 Or:
 
 ```bash
-codex mcp add nla -- npx -y @your-scope/nla-mcp
+codex mcp add nla -- npx -y @suren-kk/armenian-national-library-mcp
 ```
 
 ### Claude Code stdio example
 
 ```bash
 claude mcp add --transport stdio nla -- \
-  npx -y @your-scope/nla-mcp
+  npx -y @suren-kk/armenian-national-library-mcp
 ```
 
 ### Remote HTTP

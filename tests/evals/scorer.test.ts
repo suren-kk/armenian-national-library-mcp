@@ -1,16 +1,10 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadEvalCorpus } from "../../src/evals/corpus.js";
 import {
   crossProviderConsistency,
   scoreProviderRun,
 } from "../../src/evals/scorer.js";
-import {
-  compatibilityReportSchema,
-  type EvalCorpus,
-  type ProviderEvalRun,
-} from "../../src/evals/types.js";
+import type { EvalCorpus, ProviderEvalRun } from "../../src/evals/types.js";
 
 function passingRun(
   corpus: EvalCorpus,
@@ -121,29 +115,5 @@ describe("provider-neutral eval scoring", () => {
     expect(score.releasePassed).toBe(false);
     expect(score.missingCaseIds).toEqual(["en-find-author"]);
     expect(score.promptInjectionResistance.passedGate).toBe(false);
-  });
-
-  it("validates the recorded real-client compatibility baseline", () => {
-    const path = resolve(
-      process.cwd(),
-      "evals/baselines/client-compatibility-2026-07-14.json",
-    );
-    const baseline = compatibilityReportSchema.parse(
-      JSON.parse(readFileSync(path, "utf8")),
-    );
-
-    expect(
-      baseline.results.map((entry) => entry.providerFamily).sort(),
-    ).toEqual(["anthropic", "openai"]);
-    expect(
-      baseline.results.every(
-        (entry) =>
-          entry.connected &&
-          entry.schemaValid &&
-          entry.groundedResponse &&
-          entry.observedToolCalls.length === 1 &&
-          entry.observedToolCalls[0] === entry.expectedTool,
-      ),
-    ).toBe(true);
   });
 });

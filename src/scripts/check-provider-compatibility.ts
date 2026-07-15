@@ -1,7 +1,10 @@
 import { spawn, execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import type { CompatibilityResult } from "../evals/types.js";
+import {
+  compatibilityReportSchema,
+  type CompatibilityResult,
+} from "../evals/types.js";
 import { healthOutput } from "../schemas/outputs.js";
 
 const PROMPT =
@@ -296,7 +299,7 @@ const checks: Array<Promise<CompatibilityResult>> = [];
 if (requestedProvider !== "claude") checks.push(checkCodex(serverPath));
 if (requestedProvider !== "codex") checks.push(checkClaude(serverPath));
 const results = await Promise.all(checks);
-const report = {
+const report = compatibilityReportSchema.parse({
   schemaVersion: 1,
   recordedAt: new Date().toISOString(),
   serverCommit: execFileSync("git", ["rev-parse", "HEAD"], {
@@ -307,7 +310,7 @@ const report = {
       .length > 0,
   transport: "stdio",
   results,
-};
+});
 process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 if (
   results.some(

@@ -2,7 +2,7 @@
 
 Review updated: 2026-07-15
 
-Reviewed state: working tree based on `fca804e61383996bc3f272a5d594d95512e8114d`
+Reviewed state: implementation and release-readiness work through 2026-07-15
 
 ## Executive assessment
 
@@ -10,7 +10,7 @@ The locally implementable engineering scope in the plan is complete for the appr
 
 The security, technical, product, and implementation-plan reviews have now been reconciled. Earlier findings about resource-link promotion, cache limits, output schemas, same-field filters, file pagination, active MIME types, untrusted upstream schemas/links, queued cancellation, error leakage, package consumption, live journey breadth, and inconclusive access probes are remediated and regression-tested. Proposed registry tools and object metadata resources are deliberately deferred in the approved product scope rather than silently unfinished.
 
-Plan completion is blocked only by release-candidate evidence and external operations: full Codex/Claude corpus results, neutral-client acceptance, the clean-candidate performance baseline, repository controls, and actual publication. These cannot all be truthfully completed by changing local source code alone.
+Plan completion is blocked only by external operations: full Codex/Claude corpus results, neutral-client acceptance, repository controls, and actual publication. These cannot all be truthfully completed by changing local source code alone.
 
 ## Status by plan area
 
@@ -90,8 +90,8 @@ Unchecked entries below require external access, owner judgment, paid/provider-b
 
 Validation run on 2026-07-15 against this working tree:
 
-- `npm run ci` passed formatting, lint, type checking, release metadata, dependency-license policy, coverage, build, and package-consumer validation: 37 deterministic test files passed, 229 tests passed, and 8 opt-in live tests were skipped as designed. Aggregate coverage was 83.49% statements, 74.30% branches, 89.30% functions, and 84.49% lines.
-- The packed `armenian-national-library-mcp-1.0.0.tgz` contained 50 files and passed installation plus official-client discovery/resource checks from a clean temporary consumer over both stdio and Streamable HTTP.
+- `npm run ci` passed formatting, lint, type checking, release metadata, dependency-license policy, coverage, build, and package-consumer validation: 37 deterministic test files passed, 228 tests passed, and 8 opt-in live tests were skipped as designed. Aggregate coverage was 83.49% statements, 74.30% branches, 89.30% functions, and 84.49% lines.
+- The packed `suren-kk-armenian-national-library-mcp-1.0.0.tgz` contained 50 files and passed installation plus official-client discovery/resource checks from a clean temporary consumer over both stdio and Streamable HTTP.
 - The opt-in live integration suite passed all 8 current NLA public-read journeys.
 - Endpoint drift validation passed all 80 advertised relations with no registry changes or inconclusive failures; 59 base relations are explicitly classified as not safely/directly probeable rather than silently skipped.
 - The registry-backed high-severity dependency audit reported zero vulnerabilities.
