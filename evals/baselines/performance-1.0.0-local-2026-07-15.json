@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-07-15T10:43:58.665Z",
+  "serverCommit": "ed0a011a55cab6bf2c5902a591d13d6d90de6925",
+  "iterations": 5,
+  "knownHandle": "123456789/10740",
+  "results": {
+    "search_first_page": {
+      "cold": {
+        "samples": 5,
+        "latencyMs": { "p50": 130, "p95": 255 },
+        "upstreamCalls": { "minimum": 1, "maximum": 1 }
+      },
+      "warm": {
+        "samples": 5,
+        "latencyMs": { "p50": 1, "p95": 2 },
+        "upstreamCalls": { "minimum": 0, "maximum": 0 }
+      }
+    },
+    "get_known_item": {
+      "cold": {
+        "samples": 5,
+        "latencyMs": { "p50": 51, "p95": 76 },
+        "upstreamCalls": { "minimum": 2, "maximum": 2 }
+      },
+      "warm": {
+        "samples": 5,
+        "latencyMs": { "p50": 0, "p95": 1 },
+        "upstreamCalls": { "minimum": 0, "maximum": 0 }
+      }
+    },
+    "list_known_item_files": {
+      "cold": {
+        "samples": 5,
+        "latencyMs": { "p50": 168, "p95": 203 },
+        "upstreamCalls": { "minimum": 15, "maximum": 15 }
+      },
+      "warm": {
+        "samples": 5,
+        "latencyMs": { "p50": 1, "p95": 1 },
+        "upstreamCalls": { "minimum": 0, "maximum": 0 }
+      }
+    },
+    "first_text_chunk": {
+      "cold": {
+        "samples": 5,
+        "latencyMs": { "p50": 171, "p95": 179 },
+        "upstreamCalls": { "minimum": 7, "maximum": 7 }
+      },
+      "warm": {
+        "samples": 5,
+        "latencyMs": { "p50": 1, "p95": 1 },
+        "upstreamCalls": { "minimum": 0, "maximum": 0 }
+      }
+    },
+    "text_continuation_journey": {
+      "cold": {
+        "samples": 5,
+        "latencyMs": { "p50": 174, "p95": 188 },
+        "upstreamCalls": { "minimum": 7, "maximum": 7 }
+      },
+      "warm": {
+        "samples": 5,
+        "latencyMs": { "p50": 2, "p95": 2 },
+        "upstreamCalls": { "minimum": 0, "maximum": 0 }
+      }
+    },
+    "missing_item_error": {
+      "cold": {
+        "samples": 5,
+        "latencyMs": { "p50": 13, "p95": 14 },
+        "upstreamCalls": { "minimum": 1, "maximum": 1 }
+      },
+      "warm": {
+        "samples": 5,
+        "latencyMs": { "p50": 12, "p95": 15 },
+        "upstreamCalls": { "minimum": 1, "maximum": 1 }
+      }
+    }
+  }
+}

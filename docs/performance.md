@@ -24,3 +24,9 @@ File-list cold calls scale as two enumeration requests plus format and access re
 5. Investigate a sustained threshold or call-budget regression before optimizing.
 
 The deterministic suite separately locks important mechanics such as cache hits, single-flight requests, cancellation, cache eviction, and the one-file cold-call budget. Live measurements are not placed in ordinary CI because upstream availability and public catalogue changes are outside this project's control.
+
+## Version 1.0.0 local baseline
+
+The initial five-iteration aggregate baseline is stored in [`evals/baselines/performance-1.0.0-local-2026-07-15.json`](../evals/baselines/performance-1.0.0-local-2026-07-15.json). It was captured from clean commit `ed0a011a55cab6bf2c5902a591d13d6d90de6925` using Node.js 24.15.0 on macOS 26.5.2 arm64.
+
+All latency investigation thresholds passed. Cold P95 ranged from 14 ms for the structured missing-item path to 255 ms for search; warm cacheable journeys completed in 0–2 ms with no upstream calls. File enumeration used 15 calls because the current known item exposes four bundles and multiple bitstreams; this is consistent with the documented per-bitstream format/access scaling and is recorded as the 1.0.0 item-shape baseline rather than a fixed global allowance.

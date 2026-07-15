@@ -30,11 +30,9 @@ Unchecked entries below require external access, owner judgment, paid/provider-b
 
 ## Remaining release gates
 
-- [ ] **Run the full two-provider release evaluation.** Execute all 22 multilingual/adversarial cases with at least one current Codex/OpenAI client and one current Claude/Anthropic client on the same clean candidate commit. Retain schema validity, host/restriction handling, tool selection, grounded completion, citation, prompt-injection, model/client version, cost/token, and reviewer evidence; pass `npm run eval:score`. **Provider access/cost and human review required.**
+- [ ] **Run the full two-provider release evaluation.** Execute all 22 multilingual/adversarial cases with at least one current Codex/OpenAI client and one current Claude/Anthropic client on the same clean candidate commit. Retain schema validity, host/restriction handling, tool selection, grounded completion, citation, prompt-injection, model/client version, cost/token, and reviewer evidence; pass `npm run eval:score`. **Explicitly deferred by the owner on 2026-07-15; provider access/cost and human review remain required.**
 
-- [ ] **Complete neutral-client hosted acceptance.** Follow `docs/client-acceptance.md` with Codex, Claude, and MCP Inspector against both the packed stdio executable and one TLS-protected authenticated/private `/mcp` endpoint on the same candidate revision. Retain sanitized evidence for discovery, representative tools/resources, stateless requests, rejected credentials/origins, and shutdown. **Hosted environment and client access required.**
-
-- [ ] **Capture the final clean-candidate performance baseline.** Run at least five live benchmark iterations from the intended environment, compare P50/P95 and call counts with `docs/performance.md`, and retain aggregate-only evidence. The harness and investigation thresholds are implemented and smoke-tested, but a dirty development-tree run is not release evidence. **Clean release candidate and target environment required.**
+- [ ] **Complete neutral-client acceptance.** Follow `docs/client-acceptance.md` with Codex, Claude, and MCP Inspector against both the packed stdio executable and one TLS-protected authenticated/private `/mcp` endpoint on the same candidate revision. Retain sanitized evidence for discovery, representative tools/resources, stateless requests, rejected credentials/origins, and shutdown. **Provider/client-backed portions are deferred with the evaluation; a private test environment and client access remain required.**
 
 - [ ] **Activate repository controls and publish verified artifacts.** Verify required branch checks, Actions, Dependabot/security settings, private vulnerability reporting, protected release environment, personal npm scope/trusted publishing, and GHCR permissions. After every prior gate passes, create the reviewed signed tag and verify npm provenance/integrity, checksummed source assets, attestations, exact image digest, and the clean-user flow. **Owner credentials and GitHub/npm configuration required.**
 
@@ -43,6 +41,7 @@ Unchecked entries below require external access, owner judgment, paid/provider-b
 - [x] The canonical GitHub repository is `suren-kk/armenian-national-library-mcp`, the public npm package is `@suren-kk/armenian-national-library-mcp`, the CLI and MCP server name are `armenian-national-library-mcp`, and the first public version remains `1.0.0`.
 - [x] The owner chose publication as independent, unofficial research software using the repository's disclosures, rights warnings, privacy policy, and takedown process. This records the maintainer's release posture; it does not claim NLA authorization, decide third-party content rights, or constitute legal advice.
 - [x] No public hosted MCP endpoint is planned. Streamable HTTP remains a supported self-host/private-boundary transport and its release acceptance may use a temporary private test deployment.
+- [x] The initial local performance environment is the maintainer's macOS arm64 machine with Node.js 24.15.0. Five clean-candidate iterations passed every investigation threshold, and the aggregate-only baseline is retained under `evals/baselines/`.
 
 ## Completed implementation remediation
 
@@ -96,6 +95,7 @@ Validation run on 2026-07-15 against this working tree:
 - The opt-in live integration suite passed all 8 current NLA public-read journeys.
 - Endpoint drift validation passed all 80 advertised relations with no registry changes or inconclusive failures; 59 base relations are explicitly classified as not safely/directly probeable rather than silently skipped.
 - The registry-backed high-severity dependency audit reported zero vulnerabilities.
+- The version 1.0.0 local performance baseline measured clean runtime commit `ed0a011a55cab6bf2c5902a591d13d6d90de6925` over five iterations. Cold P95 latency was 14–255 ms, and all cacheable warm journeys completed in 0–2 ms with no upstream calls.
 
 This is local development evidence. It does not replace the clean-candidate provider, neutral-client, private HTTP, GitHub Actions candidate-image, or publication evidence listed under the remaining release gates.
 
