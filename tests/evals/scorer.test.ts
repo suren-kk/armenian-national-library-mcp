@@ -127,12 +127,7 @@ describe("provider-neutral eval scoring", () => {
     );
     if (!exactPassage || !restricted) throw new Error("missing eval fixtures");
 
-    exactPassage.toolCalls = [
-      "get_item",
-      "get_item_text",
-      "list_item_files",
-      "get_item_text",
-    ];
+    exactPassage.toolCalls = ["get_item", "get_item_text", "list_item_files"];
     restricted.toolCalls = ["get_item", "list_item_files"];
 
     expect(scoreProviderRun(corpus, run).coreToolSelection.rate).toBe(1);
