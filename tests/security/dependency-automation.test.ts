@@ -13,6 +13,7 @@ interface DependabotUpdate {
 interface WorkflowStep {
   run?: unknown;
   uses?: unknown;
+  with?: Record<string, unknown>;
 }
 
 interface Workflow {
@@ -63,6 +64,18 @@ describe("dependency and workflow security automation", () => {
         "npm run security:audit",
       );
     }
+  });
+
+  it("keeps the release SARIF gate aligned with its configured severities", () => {
+    const trivyStep = workflowSteps(".github/workflows/release.yml").find(
+      (step) =>
+        typeof step.uses === "string" &&
+        step.uses.startsWith("aquasecurity/trivy-action@"),
+    );
+
+    expect(trivyStep?.with?.format).toBe("sarif");
+    expect(trivyStep?.with?.severity).toBe("HIGH,CRITICAL");
+    expect(trivyStep?.with?.["limit-severities-for-sarif"]).toBe(true);
   });
 
   it("pins every external workflow action to a full commit", () => {

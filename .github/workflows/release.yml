@@ -87,6 +87,7 @@ jobs:
           ignore-unfixed: false
           exit-code: "1"
           format: sarif
+          limit-severities-for-sarif: true
           output: release/trivy-image.sarif
       - name: Checksum image scan report
         run: |
