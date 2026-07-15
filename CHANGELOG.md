@@ -4,25 +4,7 @@ All notable changes to this project are documented here. Releases follow [Semant
 
 ## [Unreleased]
 
-### Changed
-
-- Renamed the software and CLI to `nla-research-mcp`, identified Suren Karapetyan as owner/maintainer, added prominent unofficial-project disclosures, and blocked publication until a personal npm scope and canonical GitHub repository are configured.
-- Added source-declared rights normalization and withheld content links for restricted or unknown access states without inferring that public content is reusable.
-
-### Added
-
-- Added data/content-rights, privacy, takedown, contribution-provenance, third-party-notice, and legal/privacy incident-response policies.
-
-### Security
-
-- Added weekly npm, container, and GitHub Actions dependency updates with immutable-action enforcement and advisory scans in pull-request and release workflows.
-- Restricted MCP resource links to exact server-generated bitstream URIs, stripped upstream links from semantic output, and added runtime validation for security-relevant NLA records.
-- Limited inline content to verified plain text and raster images, hardened filename handling, and failed closed for restricted or unknown access states.
-- Enforced caller-specific and aggregate cache limits, bounded upstream queues, rate-limiter identities, HTTP concurrency, request bodies, and request media types.
-- Added local, bearer-token, and trusted-proxy deployment modes, safe internal-error responses, API security headers, and security-focused rejection logging.
-- Added CodeQL, Trivy source/image scanning, npm trusted publishing, keyless release/image attestations, and an incident-response runbook.
-
-## [1.0.0] - 2026-07-14
+## [1.0.0] - 2026-07-15
 
 ### Added
 
@@ -33,3 +15,24 @@ All notable changes to this project are documented here. Releases follow [Semant
 - Host/Origin validation, request and response limits, rate limiting, prompt-injection boundaries, structured redacted logging, and hardened container runtime.
 - Multilingual and adversarial evaluation corpus with Codex and Claude compatibility gates.
 - Reproducible npm, source, SBOM, checksum, and container release automation plus nightly live integration/drift checks.
+- Data/content-rights, privacy, takedown, contribution-provenance, third-party-notice, and legal/privacy incident-response policies.
+- Sanitized versioned NLA contract fixtures, core-flow benchmark and content-coverage tools, product-success measures, Armenian onboarding, neutral-client acceptance guidance, and privacy-safe issue templates.
+- Content-free tool duration/result/truncation/error observability and clean-consumer package checks for both stdio and Streamable HTTP.
+
+### Changed
+
+- Renamed the software, CLI, and MCP server to `armenian-national-library-mcp`, published under `@suren-kk/armenian-national-library-mcp`, identified Suren Karapetyan as owner/maintainer, and added prominent unofficial-project disclosures.
+- Added source-declared rights normalization and withheld content links for restricted or unknown access states without inferring that public content is reusable.
+- Reworked onboarding around research outcomes, multilingual prompts, search refinement, accurate text continuation, explicit scope/deferrals, privacy, performance, and support guidance.
+- Expanded live acceptance across facets, browse, hierarchy, scoped search, identifiers, access, protected endpoints, and MCP resources.
+
+### Security
+
+- Added weekly npm, container, and GitHub Actions dependency updates with immutable-action enforcement and advisory scans in pull-request and release workflows.
+- Restricted MCP resource links to exact server-generated bitstream URIs, stripped upstream links from semantic output, and added runtime validation for security-relevant NLA records.
+- Limited inline content to verified plain text and raster images, hardened filename handling, and failed closed for restricted or unknown access states.
+- Enforced caller-specific and aggregate cache limits, bounded upstream queues, rate-limiter identities, HTTP concurrency, request bodies, and request media types.
+- Added local, bearer-token, and trusted-proxy deployment modes, safe internal-error responses, API security headers, and security-focused rejection logging.
+- Added CodeQL, Trivy source/image scanning, npm trusted publishing, keyless release/image attestations, and an incident-response runbook.
+- Made inconclusive endpoint access probes fail nightly drift checks while explicitly reporting approved non-probeable relations; bounded adversarial text pagination and blocked withdrawn-item content journeys.
+- Added candidate-image CI execution and scanning under non-root, read-only, capability, PID, memory, CPU, and temporary-filesystem restrictions.

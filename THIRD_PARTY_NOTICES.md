@@ -2,7 +2,7 @@
 
 Generated/reviewed for runtime dependency versions locked on 2026-07-14.
 
-`nla-research-mcp` depends on third-party open-source software. The root MIT License applies to this project's original software; it does not replace the licences of dependencies.
+`armenian-national-library-mcp` depends on third-party open-source software. The root MIT License applies to this project's original software; it does not replace the licences of dependencies.
 
 ## Direct runtime dependencies
 

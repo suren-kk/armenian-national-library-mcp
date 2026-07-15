@@ -8,8 +8,9 @@ export interface ReleaseMetadataInput {
 }
 
 const stableSemver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-const publicPackageName = /^@[a-z0-9][a-z0-9._-]*\/nla-research-mcp$/;
-const provisionalPackageName = "nla-research-mcp";
+const publicPackageName =
+  /^@[a-z0-9][a-z0-9._-]*\/armenian-national-library-mcp$/;
+const provisionalPackageName = "armenian-national-library-mcp";
 const expectedDescription =
   "Independent, unofficial research MCP integration for the National Library of Armenia public DSpace repository";
 
@@ -48,7 +49,7 @@ export function releaseMetadataIssues({
       !publicPackageName.test(packageManifest.name))
   ) {
     issues.push(
-      "public package.json name must use a personal scope: @<scope>/nla-research-mcp",
+      "public package.json name must use a personal scope: @<scope>/armenian-national-library-mcp",
     );
   }
   if (packageManifest.description !== expectedDescription) {
@@ -95,41 +96,56 @@ export function releaseMetadataIssues({
       "package.json author and legal contact must identify Suren Karapetyan",
     );
   }
+  const maintainers = Array.isArray(packageManifest.maintainers)
+    ? packageManifest.maintainers
+    : [];
+  const hasResponsibleMaintainer = maintainers.some((maintainer) => {
+    const entry = objectValue(maintainer);
+    return (
+      entry?.name === "Suren Karapetyan" &&
+      entry.email === "surenakar@gmail.com"
+    );
+  });
+  if (!hasResponsibleMaintainer) {
+    issues.push(
+      "package.json maintainers must include Suren Karapetyan and the project contact",
+    );
+  }
   const publishConfig = objectValue(packageManifest.publishConfig);
   if (packageManifest.private !== true && publishConfig?.access !== "public") {
     issues.push(
       "publishConfig.access must be public when publication is enabled",
     );
   }
-  if (packageManifest.private !== true) {
-    const repository = objectValue(packageManifest.repository);
-    const bugs = objectValue(packageManifest.bugs);
-    if (
-      repository?.type !== "git" ||
-      typeof repository.url !== "string" ||
-      !repository.url.includes("github.com/")
-    ) {
-      issues.push(
-        "public package.json must declare the canonical GitHub repository",
-      );
-    }
-    if (
-      typeof packageManifest.homepage !== "string" ||
-      !packageManifest.homepage.includes("github.com/")
-    ) {
-      issues.push(
-        "public package.json must declare the canonical GitHub homepage",
-      );
-    }
-    if (typeof bugs?.url !== "string" || !bugs.url.includes("github.com/")) {
-      issues.push(
-        "public package.json must declare the canonical GitHub issue URL",
-      );
-    }
+  const repository = objectValue(packageManifest.repository);
+  const bugs = objectValue(packageManifest.bugs);
+  if (
+    repository?.type !== "git" ||
+    typeof repository.url !== "string" ||
+    !repository.url.includes("github.com/")
+  ) {
+    issues.push("package.json must declare the canonical GitHub repository");
+  }
+  if (
+    typeof packageManifest.homepage !== "string" ||
+    !packageManifest.homepage.includes("github.com/")
+  ) {
+    issues.push("package.json must declare the canonical GitHub homepage");
+  }
+  if (typeof bugs?.url !== "string" || !bugs.url.includes("github.com/")) {
+    issues.push("package.json must declare the canonical GitHub issue URL");
+  }
+  const keywords = Array.isArray(packageManifest.keywords)
+    ? packageManifest.keywords
+    : [];
+  if (!keywords.includes("mcp") || !keywords.includes("dspace")) {
+    issues.push("package.json keywords must include mcp and dspace");
   }
   const bin = objectValue(packageManifest.bin);
-  if (bin?.["nla-research-mcp"] !== "dist/index.js") {
-    issues.push("package.json must expose the nla-research-mcp CLI binary");
+  if (bin?.["armenian-national-library-mcp"] !== "dist/index.js") {
+    issues.push(
+      "package.json must expose the armenian-national-library-mcp CLI binary",
+    );
   }
   const publishedFiles = Array.isArray(packageManifest.files)
     ? new Set(packageManifest.files)

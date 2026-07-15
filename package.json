@@ -1,16 +1,41 @@
 {
-  "name": "nla-research-mcp",
+  "name": "@suren-kk/armenian-national-library-mcp",
   "version": "1.0.0",
   "description": "Independent, unofficial research MCP integration for the National Library of Armenia public DSpace repository",
-  "private": true,
   "author": {
     "name": "Suren Karapetyan",
     "email": "surenakar@gmail.com"
   },
+  "maintainers": [
+    {
+      "name": "Suren Karapetyan",
+      "email": "surenakar@gmail.com"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suren-kk/armenian-national-library-mcp.git"
+  },
+  "homepage": "https://github.com/suren-kk/armenian-national-library-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/suren-kk/armenian-national-library-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "armenia",
+    "library",
+    "dspace",
+    "research",
+    "catalogue"
+  ],
   "license": "MIT",
   "type": "module",
   "bin": {
-    "nla-research-mcp": "dist/index.js"
+    "armenian-national-library-mcp": "dist/index.js"
   },
   "files": [
     "dist/**/*.js",
@@ -46,6 +71,8 @@
     "dev": "tsx src/index.ts",
     "drift:check": "tsx src/scripts/check-endpoint-drift.ts",
     "drift:check:built": "node dist/scripts/check-endpoint-drift.js",
+    "benchmark:live": "node --import tsx src/scripts/benchmark-live-flows.ts",
+    "measure:content-coverage": "node --import tsx src/scripts/measure-content-coverage.ts",
     "eval:validate": "vitest run tests/evals tests/compatibility",
     "eval:score": "node --import tsx src/scripts/score-evals.ts",
     "eval:score:built": "node dist/scripts/score-evals.js",

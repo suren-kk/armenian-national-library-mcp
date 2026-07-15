@@ -65,7 +65,7 @@ function main(): void {
   const packageFilename = packed[0]?.filename;
   if (!packageFilename) throw new Error("npm pack did not report an artifact");
 
-  const sbomFilename = `nla-research-mcp-${packageManifest.version}.cdx.json`;
+  const sbomFilename = `armenian-national-library-mcp-${packageManifest.version}.cdx.json`;
   writeFileSync(
     resolve(outputDirectory, sbomFilename),
     run("npm", [
@@ -77,11 +77,11 @@ function main(): void {
     ]),
   );
 
-  const sourceFilename = `nla-research-mcp-${packageManifest.version}-source.tar.gz`;
+  const sourceFilename = `armenian-national-library-mcp-${packageManifest.version}-source.tar.gz`;
   run("git", [
     "archive",
     "--format=tar.gz",
-    `--prefix=nla-research-mcp-${packageManifest.version}/`,
+    `--prefix=armenian-national-library-mcp-${packageManifest.version}/`,
     `--output=${resolve(outputDirectory, sourceFilename)}`,
     "HEAD",
   ]);

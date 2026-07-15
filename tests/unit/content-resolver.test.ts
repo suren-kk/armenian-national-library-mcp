@@ -291,6 +291,27 @@ describe("content resolution", () => {
     expect(bitstreamPages).toEqual(["0", "1"]);
   });
 
+  it("bounds empty or adversarial pagination during text discovery", async () => {
+    const fetchMock = fixtureFetch(
+      "never reached",
+      25,
+      "document.txt",
+      "open.access",
+      24,
+    );
+    const resolver = new NlaContentResolver(
+      new NlaClient(testConfig().nla, fetchMock),
+    );
+
+    await expect(
+      resolver.getItemText({ itemUuid, offsetChars: 0, maxChars: 100 }),
+    ).rejects.toMatchObject({
+      code: "NLA_RESPONSE_TOO_LARGE",
+      details: { pageLimit: 20 },
+    });
+    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(21);
+  });
+
   it("withholds content links and downloads for restricted bitstreams", async () => {
     const resolver = new NlaContentResolver(
       new NlaClient(

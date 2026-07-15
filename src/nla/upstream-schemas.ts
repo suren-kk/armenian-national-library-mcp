@@ -78,7 +78,10 @@ export const accessStatusSchema = z
 
 export const searchObjectSchema = z
   .object({
-    hitHighlights: z.record(z.string(), z.array(z.string())).optional(),
+    hitHighlights: z
+      .record(z.string(), z.array(z.string()))
+      .nullable()
+      .optional(),
     _embedded: z.object({ indexableObject: dspaceObjectSchema }),
   })
   .passthrough();

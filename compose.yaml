@@ -1,8 +1,8 @@
 services:
-  nla-research-mcp:
+  armenian-national-library-mcp:
     build:
       context: .
-    image: nla-research-mcp:local
+    image: armenian-national-library-mcp:local
     init: true
     user: "1000:1000"
     read_only: true

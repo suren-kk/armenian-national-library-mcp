@@ -4,6 +4,7 @@ import {
   parseBitstream,
   parseBitstreamFormat,
   parseDspaceObject,
+  parseSearchObject,
 } from "../../src/nla/upstream-schemas.js";
 
 describe("security-relevant upstream schemas", () => {
@@ -49,5 +50,20 @@ describe("security-relevant upstream schemas", () => {
     expect(() =>
       parseAccessStatus({ type: "accessStatus", status: "open.access" }),
     ).toThrow();
+  });
+
+  it("accepts a null search highlight map from DSpace", () => {
+    const result = parseSearchObject({
+      hitHighlights: null,
+      _embedded: {
+        indexableObject: {
+          uuid: "fdff35c4-2c16-481c-9bc8-fee00be21121",
+          type: "item",
+          metadata: {},
+        },
+      },
+    });
+
+    expect(result.hitHighlights).toBeNull();
   });
 });

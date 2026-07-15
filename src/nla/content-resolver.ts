@@ -30,6 +30,7 @@ import { paginationFrom } from "./pagination.js";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TEXT_DISCOVERY_MAX_RECORDS = 500;
+const TEXT_DISCOVERY_MAX_PAGES = 20;
 
 export interface BundleWithFiles {
   uuid: string;
@@ -555,6 +556,7 @@ export class NlaContentResolver {
   ): Promise<ResolvedBitstream | undefined> {
     const pageSize = this.client.config.maxPageSize;
     let inspected = 0;
+    let inspectedPages = 0;
     let bundlePageNumber = 0;
     while (true) {
       const bundlePage = await this.listBundlesPage(
@@ -563,6 +565,14 @@ export class NlaContentResolver {
         pageSize,
         signal,
       );
+      inspectedPages += 1;
+      if (inspectedPages > TEXT_DISCOVERY_MAX_PAGES) {
+        throw new NlaError(
+          "NLA_RESPONSE_TOO_LARGE",
+          "Text discovery exceeded its bounded page limit; select a bitstream UUID from list_item_files",
+          { pageLimit: TEXT_DISCOVERY_MAX_PAGES },
+        );
+      }
       inspected += bundlePage.bundles.length;
       for (const bundle of bundlePage.bundles) {
         if (classifyBundle(bundle.name) !== "TEXT") continue;
@@ -574,6 +584,14 @@ export class NlaContentResolver {
             pageSize,
             signal,
           );
+          inspectedPages += 1;
+          if (inspectedPages > TEXT_DISCOVERY_MAX_PAGES) {
+            throw new NlaError(
+              "NLA_RESPONSE_TOO_LARGE",
+              "Text discovery exceeded its bounded page limit; select a bitstream UUID from list_item_files",
+              { pageLimit: TEXT_DISCOVERY_MAX_PAGES },
+            );
+          }
           inspected += bitstreamPage.files.length;
           if (inspected > TEXT_DISCOVERY_MAX_RECORDS) {
             throw new NlaError(

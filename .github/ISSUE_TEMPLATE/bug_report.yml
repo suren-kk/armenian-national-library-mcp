@@ -1,0 +1,56 @@
+name: Bug report
+description: Report a reproducible problem in the MCP server
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, authorization headers, cookies, tokens, full extracted text, private research notes, or downloaded file bytes. Report security vulnerabilities privately using SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Server version or commit
+      placeholder: 1.0.0 or full Git commit
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client and version
+      placeholder: Codex CLI 0.x, Claude Code 2.x, MCP Inspector...
+    validations:
+      required: true
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport
+      options: [stdio, Streamable HTTP]
+    validations:
+      required: true
+  - type: textarea
+    id: journey
+    attributes:
+      label: Expected journey and observed result
+      description: Describe the tool sequence and behavior without copying document content.
+    validations:
+      required: true
+  - type: input
+    id: error
+    attributes:
+      label: Safe structured error code and UTC time
+      placeholder: NLA_NOT_FOUND at 2026-07-15T10:00:00Z
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include only public identifiers and sanitized stderr fields needed to reproduce.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Sensitive-data check
+      options:
+        - label: I removed credentials, headers, cookies, tokens, full text, private notes, and file bytes.
+          required: true

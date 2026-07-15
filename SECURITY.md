@@ -6,7 +6,7 @@ Security fixes are made for the latest `1.x` release. Operators should run the n
 
 ## Reporting a vulnerability
 
-Do not disclose suspected vulnerabilities in a public issue. Use the repository host's private vulnerability-reporting feature (on GitHub: **Security → Advisories → Report a vulnerability**). If private reporting is unavailable, email Suren Karapetyan at `surenakar@gmail.com` with the subject `nla-research-mcp security report`. Include:
+Do not disclose suspected vulnerabilities in a public issue. Use the repository host's private vulnerability-reporting feature (on GitHub: **Security → Advisories → Report a vulnerability**). If private reporting is unavailable, email Suren Karapetyan at `surenakar@gmail.com` with the subject `armenian-national-library-mcp security report`. Include:
 
 - Affected package or image version and source revision.
 - Reproduction steps and the expected security boundary.

@@ -10,23 +10,39 @@ export const sortSchema = z
   .regex(
     /^[A-Za-z0-9_.-]+,(?:ASC|DESC)$/i,
     "sort must use field,ASC or field,DESC",
+  )
+  .describe(
+    "Sort as field,ASC or field,DESC; common examples are score,DESC, dc.date.issued,DESC, and dc.title,ASC",
   );
 export const facetNameSchema = z
   .string()
   .min(1)
   .max(100)
-  .regex(/^[A-Za-z0-9_.-]+$/, "facet contains unsupported characters");
+  .regex(/^[A-Za-z0-9_.-]+$/, "facet contains unsupported characters")
+  .describe(
+    "Facet name returned by get_search_facets; common names include author, subject, dateIssued, language, and type",
+  );
 
 export const filterSchema = z.object({
   field: z
     .string()
     .min(1)
     .max(100)
-    .regex(/^[A-Za-z0-9_.-]+$/, "filter field contains unsupported characters"),
-  value: z.string().min(1).max(1_000),
+    .regex(/^[A-Za-z0-9_.-]+$/, "filter field contains unsupported characters")
+    .describe(
+      "Facet field returned by get_search_facets, such as author, subject, dateIssued, language, or type",
+    ),
+  value: z
+    .string()
+    .min(1)
+    .max(1_000)
+    .describe("Facet value exactly as returned by get_search_facets"),
   operator: z
     .enum(["equals", "contains", "notequals", "authority"])
-    .default("equals"),
+    .default("equals")
+    .describe(
+      "equals for an exact value, contains for text matching, notequals to exclude, or authority for a DSpace authority key",
+    ),
 });
 
 export const paginationSchema = z

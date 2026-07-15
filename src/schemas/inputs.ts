@@ -9,19 +9,38 @@ import {
 } from "./common.js";
 
 export const searchCatalogInput = z.object({
-  query: z.string().min(1).max(2_000),
-  dso_type: z.enum(["item", "collection", "community", "all"]).default("item"),
-  scope_uuid: uuidSchema.optional(),
+  query: z
+    .string()
+    .min(1)
+    .max(2_000)
+    .describe("Search text; use * to match all records within a scope"),
+  dso_type: z
+    .enum(["item", "collection", "community", "all"])
+    .default("item")
+    .describe("DSpace object type to return"),
+  scope_uuid: uuidSchema
+    .optional()
+    .describe("Optional community or collection UUID that limits the search"),
   page: pageSchema,
   page_size: pageSizeSchema,
   sort: sortSchema.optional(),
-  filters: z.array(filterSchema).max(20).default([]),
+  filters: z
+    .array(filterSchema)
+    .max(20)
+    .default([])
+    .describe(
+      "Facet constraints discovered with get_search_facets; repeated fields are combined as AND constraints",
+    ),
   include_metadata: z.boolean().default(false),
 });
 
 export const searchFacetsInput = z.object({
   facet: facetNameSchema.optional(),
-  query: z.string().max(2_000).optional(),
+  query: z
+    .string()
+    .max(2_000)
+    .optional()
+    .describe("Search text whose available refinements should be inspected"),
   scope_uuid: uuidSchema.optional(),
   page: pageSchema,
   page_size: pageSizeSchema,

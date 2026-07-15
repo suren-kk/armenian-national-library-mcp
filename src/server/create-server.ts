@@ -8,6 +8,8 @@ import { registerBitstreamResources } from "../resources/bitstream-resource.js";
 import { registerEndpointCatalogueResource } from "../resources/endpoint-catalogue.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
 import { SERVER_NAME, SERVER_VERSION } from "../version.js";
+import { Logger } from "../observability/logger.js";
+import { metricsForMode } from "../observability/metrics.js";
 
 export interface ServerDependencies {
   client?: NlaClient;
@@ -24,7 +26,12 @@ export function createServer(
   const client = dependencies.client ?? new NlaClient(config.nla);
   const content = new NlaContentResolver(client);
   const repository = new NlaRepository(client, content);
-  registerTools(server, repository, config);
+  registerTools(
+    server,
+    repository,
+    config,
+    metricsForMode(config.nla.metricsMode, new Logger("mcp-tool-metrics")),
+  );
   registerBitstreamResources(server, content, config);
   registerEndpointCatalogueResource(server, repository);
   return server;

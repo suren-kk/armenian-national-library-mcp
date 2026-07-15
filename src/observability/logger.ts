@@ -30,7 +30,7 @@ function sanitize(fields: LogFields): LogFields {
 }
 
 export class Logger {
-  constructor(private readonly component = "nla-research-mcp") {}
+  constructor(private readonly component = "armenian-national-library-mcp") {}
 
   log(level: LogLevel, message: string, fields: LogFields = {}): void {
     process.stderr.write(

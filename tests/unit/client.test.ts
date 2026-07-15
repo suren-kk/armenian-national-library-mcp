@@ -248,6 +248,78 @@ describe("NLA HTTP client", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("cancels a caller while it waits for an upstream concurrency slot", async () => {
+    let resolveFirst!: (response: Response) => void;
+    const fetchMock = vi.fn<typeof fetch>((input) => {
+      const url = requestUrl(input);
+      if (url.pathname.endsWith("/core/sites")) {
+        return new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        });
+      }
+      return Promise.resolve(
+        new Response('{"ok":true}', {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    });
+    const client = new NlaClient(
+      testConfig({ NLA_MAX_CONCURRENCY: "1", NLA_CACHE_ENABLED: "false" }).nla,
+      fetchMock,
+    );
+    const first = client.getJson("core/sites");
+    const controller = new AbortController();
+    const queued = client.getJson("core/communities", {
+      signal: controller.signal,
+    });
+    const queuedResult = expect(queued).rejects.toThrow("no longer needed");
+
+    controller.abort(new Error("no longer needed"));
+    await queuedResult;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    resolveFirst(
+      new Response('{"ok":true}', {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    await expect(first).resolves.toMatchObject({ data: { ok: true } });
+  });
+
+  it("cancels retry and redirect response bodies before continuing", async () => {
+    const retryCancel = vi.fn();
+    const redirectCancel = vi.fn();
+    const retryBody = new ReadableStream({ cancel: retryCancel });
+    const redirectBody = new ReadableStream({ cancel: redirectCancel });
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(retryBody, { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(redirectBody, {
+          status: 302,
+          headers: {
+            location: "https://api.nla.am/server/api/core/sites",
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response('{"ok":true}', {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    const client = new NlaClient(
+      testConfig({ NLA_MAX_RETRIES: "1" }).nla,
+      fetchMock,
+      new Logger("test-client"),
+      { sleep: () => Promise.resolve() },
+    );
+
+    await expect(client.getJson("core/sites")).resolves.toMatchObject({
+      data: { ok: true },
+    });
+    expect(retryCancel).toHaveBeenCalledTimes(1);
+    expect(redirectCancel).toHaveBeenCalledTimes(1);
+  });
+
   it("maps non-retryable HTTP errors", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()

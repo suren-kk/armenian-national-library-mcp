@@ -73,6 +73,10 @@ describe("search contract", () => {
     });
 
     expect(result.pagination?.totalElements).toBe(1);
+    expect(result.warnings).toEqual([
+      expect.stringContaining("Public access does not grant permission"),
+    ]);
+    expect(result.truncated).toBe(false);
     expect(result.data).toMatchObject({
       results: [
         {

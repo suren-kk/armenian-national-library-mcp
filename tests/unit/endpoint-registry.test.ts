@@ -129,7 +129,7 @@ describe("endpoint registry", () => {
 
   it("reports anonymous access changes in both directions", async () => {
     const records = loadEndpointRegistry().filter((record) =>
-      ["communities", "workspaceitems"].includes(record.relation),
+      ["bulkaccessconditionoptions", "communities"].includes(record.relation),
     );
     const links = Object.fromEntries(
       records.map((record) => [record.relation, { href: hrefFor(record) }]),
@@ -157,16 +157,73 @@ describe("endpoint registry", () => {
 
     expect(report.changedAnonymousAccess).toEqual([
       {
+        relation: "bulkaccessconditionoptions",
+        expected: "authenticated",
+        actual: "public",
+      },
+      {
         relation: "communities",
         expected: "public",
         actual: "authentication-required",
       },
-      {
-        relation: "workspaceitems",
-        expected: "authenticated",
-        actual: "public",
-      },
     ]);
+    expect(report.hasDrift).toBe(true);
+  });
+
+  it("distinguishes approved non-probeable relations from unexpected skips", async () => {
+    const records = loadEndpointRegistry().filter(
+      (record) => record.relation === "authorizations",
+    );
+    const links = Object.fromEntries(
+      records.map((record) => [record.relation, { href: hrefFor(record) }]),
+    );
+    const fetchMock = vi.fn<typeof fetch>((input) => {
+      const url = requestUrl(input);
+      if (!url.pathname.endsWith("/api")) {
+        throw new Error("approved exception must not be probed");
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ type: "root", _links: links }), {
+          headers: { "content-type": "application/hal+json" },
+        }),
+      );
+    });
+    const report = await checkEndpointRegistryDrift(
+      new NlaClient(testConfig().nla, fetchMock),
+      records,
+      { checkAccess: true },
+    );
+
+    expect(report.accessChecksNotProbeable).toEqual(["authorizations"]);
+    expect(report.accessChecksSkipped).toEqual([]);
+    expect(report.hasDrift).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats an inconclusive direct access probe as drift", async () => {
+    const records = loadEndpointRegistry().filter(
+      (record) => record.relation === "communities",
+    );
+    const links = Object.fromEntries(
+      records.map((record) => [record.relation, { href: hrefFor(record) }]),
+    );
+    const fetchMock = vi.fn<typeof fetch>((input) => {
+      const url = requestUrl(input);
+      return Promise.resolve(
+        url.pathname.endsWith("/api")
+          ? new Response(JSON.stringify({ type: "root", _links: links }), {
+              headers: { "content-type": "application/hal+json" },
+            })
+          : new Response(null, { status: 404 }),
+      );
+    });
+    const report = await checkEndpointRegistryDrift(
+      new NlaClient(testConfig().nla, fetchMock),
+      records,
+      { checkAccess: true },
+    );
+
+    expect(report.accessChecksSkipped).toEqual(["communities"]);
     expect(report.hasDrift).toBe(true);
   });
 });

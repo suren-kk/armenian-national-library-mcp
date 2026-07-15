@@ -6,7 +6,7 @@ Contact: Suren Karapetyan, `surenakar@gmail.com`
 
 ## Scope and operating model
 
-`nla-research-mcp` is distributed as independent, unofficial research software for local or self-hosted use. Suren Karapetyan does not operate a public hosted MCP endpoint as part of this project. This notice describes the software's default behavior and information received directly by the project maintainer. A person or organization that hosts the HTTP profile is responsible for its own privacy notice, legal basis, retention, security, processors, user-rights process, and cross-border transfers.
+`armenian-national-library-mcp` is distributed as independent, unofficial research software for local or self-hosted use. Suren Karapetyan does not operate a public hosted MCP endpoint as part of this project. This notice describes the software's default behavior and information received directly by the project maintainer. A person or organization that hosts the HTTP profile is responsible for its own privacy notice, legal basis, retention, security, processors, user-rights process, and cross-border transfers.
 
 ## Default software data flow
 
@@ -45,7 +45,7 @@ NLA records and documents can contain information about identifiable people. Pub
 
 ## Requests and complaints
 
-To ask about information directly controlled by the project maintainer, request correction or deletion, or raise a privacy concern, email `surenakar@gmail.com` with the subject `nla-research-mcp privacy request`. The maintainer may request enough information to verify the request and locate the relevant correspondence or project record.
+To ask about information directly controlled by the project maintainer, request correction or deletion, or raise a privacy concern, email `surenakar@gmail.com` with the subject `armenian-national-library-mcp privacy request`. The maintainer may request enough information to verify the request and locate the relevant correspondence or project record.
 
 For data held in an NLA record, an AI-provider account, GitHub, a hosting platform, or a self-hosted deployment, contact that controller or operator directly. This project cannot delete information from systems it does not control.
 

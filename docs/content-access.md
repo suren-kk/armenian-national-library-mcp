@@ -24,6 +24,7 @@ On a cold cache, `list_item_files` makes two enumeration requests plus two detai
 - Binary resources are returned as base64 only for signature-matched PNG, JPEG, or GIF data when metadata size and streamed bytes both fit `NLA_MAX_INLINE_BINARY_BYTES`.
 - HTML, SVG, XML, JavaScript, PDF, Office/macro formats, archives, and unknown types are never returned inline. Public records can still expose metadata and a canonical NLA `/content` URL for clients to handle under their own sandbox and content policy.
 - Larger files are not fetched by the resource handler. Tools return their byte size, declared MIME type, explicit verification state, access status, and—when public—the canonical NLA `/content` URL.
+- Item-oriented file and text journeys stop before content resolution when NLA marks the item withdrawn or outside the archive. Direct bitstream results still require an exact `open.access` declaration; unknown, restricted, and embargoed statuses never receive a public-read claim or content link.
 - Restricted, embargoed, missing, and unknown access states do not receive content resource links or canonical download URLs.
 - Streamed responses are bounded even when `Content-Length` is missing or incorrect.
 

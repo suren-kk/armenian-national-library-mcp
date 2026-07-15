@@ -1,0 +1,36 @@
+name: Feature request
+description: Propose a research journey or usability improvement
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the user outcome rather than only an upstream endpoint. Do not include private research material or copyrighted document text.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Research problem
+      description: What can the user not accomplish with the current documented tools?
+    validations:
+      required: true
+  - type: textarea
+    id: journey
+    attributes:
+      label: Proposed user journey
+      description: Include language, expected result, fallback behavior, and how a source should be cited.
+    validations:
+      required: true
+  - type: textarea
+    id: frequency
+    attributes:
+      label: Frequency and evidence
+      description: How often does this block a task, and can it be demonstrated with a public NLA record?
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Product boundaries
+      options:
+        - label: The proposal can preserve read-only operation and the fixed NLA host boundary.
+        - label: I included no credentials, private notes, full text, or downloaded file bytes.
+          required: true

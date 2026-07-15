@@ -5,7 +5,29 @@ An independent, provider-neutral, read-only research MCP integration for the Nat
 > [!IMPORTANT]
 > This is an unofficial project by Suren Karapetyan. It is not affiliated with, endorsed by, sponsored by, or operated by the National Library of Armenia. The NLA name identifies the interoperated public repository only. The MIT License covers this project's software—not NLA metadata, extracted text, scans, publications, or other third-party material. See [Data and Content Rights](DATA_AND_CONTENT_RIGHTS.md) before using repository content.
 
-The current implementation includes:
+## What you can do
+
+- Find books, periodicals, manuscripts, and other catalogue records in Armenian, English, or Russian.
+- Refine a search by author, subject, year, language, type, or collection without knowing the DSpace API.
+- Inspect complete metadata, identifiers, hierarchy, access status, and source-declared rights evidence.
+- Read NLA-provided extracted text in bounded chunks when a public `TEXT` bundle exists.
+- Obtain a canonical NLA link for a public original file without placing a PDF or other complex document in model context.
+
+Try one of these prompts after connecting the server:
+
+- English: “Find works by Hovhannes Tumanyan, show the three most relevant records, and cite their NLA catalogue pages.”
+- Հայերեն: «Գտիր Հովհաննես Թումանյանի ստեղծագործությունները, ցույց տուր երեք համապատասխան գրառում և նշիր ՀԱԳ-ի աղբյուրները»։
+- Русский: «Найди материалы об истории Армении, уточни поиск по теме и покажи ссылки на записи библиотеки».
+
+A grounded result should identify the NLA record, include its canonical catalogue URL, distinguish access from reuse permission, and say clearly when extracted text is unavailable. Tool responses consistently include `data`, `source`, `warnings`, `pagination`, and `truncated` fields.
+
+## Current availability
+
+The public package identity is `@suren-kk/armenian-national-library-mcp`. Until version `1.0.0` appears on npm, use the copyable [source setup](#build-from-source). See the [Armenian quick start](docs/quickstart-hy.md) for a concise Armenian-language walkthrough.
+
+## How it works
+
+The implementation includes:
 
 - Strict TypeScript foundation with the stable official MCP SDK, validated configuration, JSON stderr logging, and stdio transport.
 - A bounded NLA HTTP/HAL client with same-origin enforcement, cancellation, timeouts, safe redirects, retry/backoff, response limits, conditional caching, actionable errors, and metadata normalization.
@@ -24,12 +46,12 @@ Local extraction/OCR remains outside the current server scope.
 
 ## Install and connect a client
 
-Public npm publication is intentionally disabled until the maintainer's personal npm scope and canonical GitHub URL are configured. Use the source setup below for now. The future package name will be `@YOUR_NPM_USERNAME/nla-research-mcp`; `YOUR_NPM_USERNAME` is a placeholder, not an installable package.
+The npm package name is `@suren-kk/armenian-national-library-mcp`. Before its first publication, use the source setup below.
 
 Add it to Codex:
 
 ```bash
-codex mcp add nla -- npx -y @YOUR_NPM_USERNAME/nla-research-mcp
+codex mcp add nla -- npx -y @suren-kk/armenian-national-library-mcp
 ```
 
 Equivalent Codex configuration:
@@ -37,7 +59,7 @@ Equivalent Codex configuration:
 ```toml
 [mcp_servers.nla]
 command = "npx"
-args = ["-y", "@YOUR_NPM_USERNAME/nla-research-mcp"]
+args = ["-y", "@suren-kk/armenian-national-library-mcp"]
 startup_timeout_sec = 20
 tool_timeout_sec = 60
 ```
@@ -46,16 +68,18 @@ Add the same package to Claude Code:
 
 ```bash
 claude mcp add --transport stdio nla -- \
-  npx -y @YOUR_NPM_USERNAME/nla-research-mcp
+  npx -y @suren-kk/armenian-national-library-mcp
 ```
 
 Restart or reconnect the client after adding the server. A new-user smoke flow is:
 
 1. Search for an NLA record with `search_catalog`.
-2. Pass its item identifier to `get_item_text` and follow `nextOffsetChars` when the text is chunked.
+2. Pass its item identifier to `get_item_text` and pass the returned `nextOffset` value back as `offset_chars` when the text is chunked.
 3. Review the record's rights and access fields. When access is public and your intended use is permitted, call `list_item_files` or `get_file_download` to obtain the canonical NLA URL.
 
 Codex and Claude use the same binary, schemas, security policy, and NLA data. Only their client configuration commands differ.
+
+If a search is too broad, call `get_search_facets` and apply an exact returned value as a filter. The [search and refinement guide](docs/searching.md) contains author, subject, year, language, sorting, and collection-scope examples.
 
 ## Build from source
 
@@ -74,6 +98,8 @@ npm start
 
 The server writes protocol messages only to stdout. Structured operational logs go to stderr.
 
+If startup, connectivity, or an NLA request fails, use the decision tree in [Support and troubleshooting](docs/support.md). Do not post credentials, authorization headers, full extracted text, or file bytes in an issue.
+
 To run the remote transport locally:
 
 ```bash
@@ -89,11 +115,11 @@ After building, a local Codex/Claude-style stdio configuration can invoke:
 ```json
 {
   "command": "node",
-  "args": ["/absolute/path/to/nla-research-mcp/dist/index.js"]
+  "args": ["/absolute/path/to/armenian-national-library-mcp/dist/index.js"]
 }
 ```
 
-For future package consumers, the CLI binary is `nla-research-mcp`; a global installation can invoke it directly after publication is enabled.
+For future package consumers, the CLI binary is `armenian-national-library-mcp`; a global installation can invoke it directly after publication is enabled.
 
 A remote MCP client can connect to:
 
@@ -199,6 +225,10 @@ All followed links and redirects must remain HTTPS on that exact host and under 
 
 HTTP deployments also require explicit Host and Origin allowlists. Requests without an `Origin` header remain valid for native MCP clients; supplied origins must match exactly. `X-Forwarded-For` is ignored unless `MCP_TRUST_PROXY=true`, which should only be enabled behind a trusted proxy that sanitizes the header.
 
+## Privacy in brief
+
+Search text, identifiers, filters, and pagination needed for a request are sent to `https://api.nla.am`. Results may then be sent by your MCP client to the AI provider you configured. The server has no analytics or telemetry service; its bounded cache and rate-limit state are in memory, and its default logs omit queries and document content. A self-hosted HTTP operator and its reverse proxy can still observe transport metadata and define their own retention. Read the full [Privacy Notice](PRIVACY.md) before operating a shared endpoint.
+
 ## Releases and support
 
 - [Changelog](CHANGELOG.md)
@@ -209,6 +239,13 @@ HTTP deployments also require explicit Host and Origin allowlists. Requests with
 - [Rights, takedown, and correction requests](TAKEDOWN.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 - [Contributing and provenance requirements](CONTRIBUTING.md)
+- [Search and refinement guide](docs/searching.md)
+- [Product scope and deliberate deferrals](docs/product-scope.md)
+- [Performance budgets](docs/performance.md)
+- [Text and original-file coverage methodology](docs/content-coverage.md)
+- [Product success and feedback](docs/product-success.md)
+- [Armenian quick start](docs/quickstart-hy.md)
+- [Neutral-client and hosted acceptance gate](docs/client-acceptance.md)
 - [Legal, privacy, and rights incident runbook](docs/legal-incident-response.md)
 - [Release and artifact verification guide](docs/releasing.md)
 - [Support and upstream outage runbook](docs/support.md)

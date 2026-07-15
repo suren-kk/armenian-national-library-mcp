@@ -4,7 +4,7 @@ Effective date: 2026-07-14
 
 ## Project status
 
-`nla-research-mcp` is independent, unofficial research software maintained by Suren Karapetyan. It is not affiliated with, endorsed by, sponsored by, or operated by the National Library of Armenia (NLA). The NLA name is used only to identify the public DSpace repository with which the software interoperates. The project does not use an NLA logo or claim to speak for the NLA.
+`armenian-national-library-mcp` is independent, unofficial research software maintained by Suren Karapetyan. It is not affiliated with, endorsed by, sponsored by, or operated by the National Library of Armenia (NLA). The NLA name is used only to identify the public DSpace repository with which the software interoperates. The project does not use an NLA logo or claim to speak for the NLA.
 
 ## What the MIT License covers
 
@@ -45,7 +45,7 @@ The software's rights-related fields preserve declarations found in source metad
 
 ## Corrections and rights concerns
 
-For a concern about this software, its documentation, or a project-controlled link or mapping, follow [TAKEDOWN.md](TAKEDOWN.md) or email `surenakar@gmail.com` with the subject `nla-research-mcp rights request`.
+For a concern about this software, its documentation, or a project-controlled link or mapping, follow [TAKEDOWN.md](TAKEDOWN.md) or email `surenakar@gmail.com` with the subject `armenian-national-library-mcp rights request`.
 
 For removal or correction of the authoritative NLA record or file, contact the NLA through its official channels as well. This project cannot edit the upstream repository.
 

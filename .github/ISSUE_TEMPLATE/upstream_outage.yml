@@ -1,0 +1,46 @@
+name: NLA upstream outage
+description: Report suspected NLA availability or API compatibility trouble
+title: "[Upstream]: "
+labels: [upstream]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        First check `/healthz` and `/readyz` for HTTP deployments and follow docs/support.md. Do not attach queries, catalogue content, credentials, headers, or file bytes.
+  - type: input
+    id: version
+    attributes:
+      label: Server version or commit
+    validations:
+      required: true
+  - type: input
+    id: time
+    attributes:
+      label: First and most recent UTC observation
+      placeholder: First 2026-07-15T10:00Z; latest 2026-07-15T10:15Z
+    validations:
+      required: true
+  - type: input
+    id: probes
+    attributes:
+      label: Liveness/readiness status
+      placeholder: healthz 200; readyz 503
+  - type: input
+    id: error
+    attributes:
+      label: Safe error code or upstream status class
+      placeholder: NLA_UPSTREAM_UNAVAILABLE or 5xx
+  - type: textarea
+    id: scope
+    attributes:
+      label: Affected read-only journeys
+      description: List affected tool names and whether all or only one public identifier fails.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Sensitive-data check
+      options:
+        - label: I included no credentials, headers, queries, document content, or file bytes.
+          required: true

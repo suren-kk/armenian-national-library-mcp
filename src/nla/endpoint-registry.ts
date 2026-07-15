@@ -185,9 +185,60 @@ export interface EndpointDriftReport {
     expected: "public" | "authenticated";
     actual: "public" | "authentication-required";
   }>;
+  accessChecksNotProbeable: string[];
   accessChecksSkipped: string[];
   hasDrift: boolean;
 }
+
+// These root relations need a resource identifier, operation-specific query,
+// authenticated context, or otherwise return a non-authoritative 4xx/5xx from
+// a bounded base-URL probe. Treating those responses as an access decision
+// would create false confidence. The list is deliberately explicit and is
+// re-reviewed when the endpoint matrix or upstream behavior changes.
+const ACCESS_PROBE_EXCEPTIONS = new Set([
+  "authorizations",
+  "bundles",
+  "claimedtasks",
+  "identifiers",
+  "itemtemplates",
+  "notifyrequests",
+  "pooltasks",
+  "qualityassuranceevents",
+  "qualityassurancetopics",
+  "relationships",
+  "relationshiptypes",
+  "resourcepolicies",
+  "resourcepolicies-search",
+  "self",
+  "sites",
+  "statistics",
+  "submissionaccessoptions",
+  "submissioncclicenses",
+  "submissioncclicenseUrls",
+  "submissioncclicenseUrls-search",
+  "submissioncoarnotifyconfigs",
+  "submissiondefinitions",
+  "submissionforms",
+  "submissionsections",
+  "submissionuploads",
+  "subscriptions",
+  "subscriptions-search",
+  "suggestions",
+  "suggestionsources",
+  "suggestiontargets",
+  "supervisionorders",
+  "usagereports",
+  "versionhistories",
+  "versions",
+  "vocabularies",
+  "vocabularyEntryDetails",
+  "vocabularyEntryDetails-search",
+  "workflowactions",
+  "workflowdefinitions",
+  "workflowitems",
+  "workflowsteps",
+  "workspaceitems",
+]);
 
 function asSingleLink(value: unknown): HalLink | null {
   if (
@@ -322,9 +373,21 @@ export async function checkEndpointRegistryDrift(
   });
   const changedAnonymousAccess: EndpointDriftReport["changedAnonymousAccess"] =
     [];
+  const accessChecksNotProbeable: string[] = [];
   const accessChecksSkipped: string[] = [];
   if (options.checkAccess) {
+    accessChecksNotProbeable.push(
+      ...records
+        .filter(
+          (record) =>
+            record.liveTest === false ||
+            record.liveTest === "skip-templated" ||
+            ACCESS_PROBE_EXCEPTIONS.has(record.relation),
+        )
+        .map((record) => record.relation),
+    );
     const candidates = records.flatMap((record) => {
+      if (ACCESS_PROBE_EXCEPTIONS.has(record.relation)) return [];
       const expected: "public" | "authenticated" | null =
         record.liveTest === true
           ? "public"
@@ -363,11 +426,13 @@ export async function checkEndpointRegistryDrift(
     removedRelations,
     changedUrls,
     changedAnonymousAccess,
+    accessChecksNotProbeable,
     accessChecksSkipped,
     hasDrift:
       newRelations.length > 0 ||
       removedRelations.length > 0 ||
       changedUrls.length > 0 ||
-      changedAnonymousAccess.length > 0,
+      changedAnonymousAccess.length > 0 ||
+      accessChecksSkipped.length > 0,
   };
 }

@@ -4,14 +4,25 @@ import { releaseMetadataIssues } from "../../src/release/metadata.js";
 function validInput() {
   return {
     packageManifest: {
-      name: "nla-research-mcp",
+      name: "armenian-national-library-mcp",
       version: "1.0.0",
       private: true,
       description:
         "Independent, unofficial research MCP integration for the National Library of Armenia public DSpace repository",
       author: { name: "Suren Karapetyan", email: "surenakar@gmail.com" },
+      maintainers: [{ name: "Suren Karapetyan", email: "surenakar@gmail.com" }],
+      repository: {
+        type: "git",
+        url: "git+https://github.com/suren-kk/armenian-national-library-mcp.git",
+      },
+      homepage:
+        "https://github.com/suren-kk/armenian-national-library-mcp#readme",
+      bugs: {
+        url: "https://github.com/suren-kk/armenian-national-library-mcp/issues",
+      },
+      keywords: ["mcp", "dspace"],
       license: "MIT",
-      bin: { "nla-research-mcp": "dist/index.js" },
+      bin: { "armenian-national-library-mcp": "dist/index.js" },
       files: [
         "dist/**/*.js",
         "config/endpoint-matrix.yaml",
@@ -27,10 +38,10 @@ function validInput() {
       ],
     },
     lockManifest: {
-      name: "nla-research-mcp",
+      name: "armenian-national-library-mcp",
       version: "1.0.0",
       packages: {
-        "": { name: "nla-research-mcp", version: "1.0.0" },
+        "": { name: "armenian-national-library-mcp", version: "1.0.0" },
       },
     },
     changelog: "# Changelog\n\n## [1.0.0] - 2026-07-14\n",
@@ -71,12 +82,27 @@ describe("release metadata", () => {
       }),
     ).toEqual(
       expect.arrayContaining([
-        "private package.json name must be nla-research-mcp",
+        "private package.json name must be armenian-national-library-mcp",
         "package.json files must include README.md",
         "package.json files must include CHANGELOG.md",
         "package.json files must include config/endpoint-matrix.yaml",
         "package.json files must include SECURITY.md",
       ]),
+    );
+  });
+
+  it("rejects removal of accountable maintainer metadata", () => {
+    const input = validInput();
+    expect(
+      releaseMetadataIssues({
+        ...input,
+        packageManifest: {
+          ...input.packageManifest,
+          maintainers: [],
+        },
+      }),
+    ).toContain(
+      "package.json maintainers must include Suren Karapetyan and the project contact",
     );
   });
 
@@ -87,24 +113,25 @@ describe("release metadata", () => {
         ...input,
         packageManifest: {
           ...input.packageManifest,
-          name: "@researcher/nla-research-mcp",
+          name: "@researcher/armenian-national-library-mcp",
           private: false,
           publishConfig: { access: "public" },
           repository: {
             type: "git",
-            url: "git+https://github.com/researcher/nla-research-mcp.git",
+            url: "git+https://github.com/researcher/armenian-national-library-mcp.git",
           },
-          homepage: "https://github.com/researcher/nla-research-mcp#readme",
+          homepage:
+            "https://github.com/researcher/armenian-national-library-mcp#readme",
           bugs: {
-            url: "https://github.com/researcher/nla-research-mcp/issues",
+            url: "https://github.com/researcher/armenian-national-library-mcp/issues",
           },
         },
         lockManifest: {
           ...input.lockManifest,
-          name: "@researcher/nla-research-mcp",
+          name: "@researcher/armenian-national-library-mcp",
           packages: {
             "": {
-              name: "@researcher/nla-research-mcp",
+              name: "@researcher/armenian-national-library-mcp",
               version: "1.0.0",
             },
           },

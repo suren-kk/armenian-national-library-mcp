@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { NlaConfig } from "../config.js";
 import { Logger } from "../observability/logger.js";
 import {
-  LogMetrics,
+  metricsForMode,
   noopMetrics,
   type Metrics,
 } from "../observability/metrics.js";
@@ -226,8 +226,7 @@ export class NlaClient {
   ) {
     this.runtime = {
       ...defaultRuntime,
-      metrics:
-        config.metricsMode === "log" ? new LogMetrics(logger) : noopMetrics,
+      metrics: metricsForMode(config.metricsMode, logger),
       ...runtime,
     };
     this.urlPolicy = new UrlPolicy(config.apiBaseUrl, config.allowedHost);

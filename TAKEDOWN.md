@@ -4,11 +4,11 @@ Effective date: 2026-07-14
 
 Contact: Suren Karapetyan, `surenakar@gmail.com`
 
-`nla-research-mcp` is independent software and does not host the authoritative NLA repository. Nevertheless, the maintainer will review good-faith reports that the project's code, documentation, fixtures, mappings, or project-controlled distribution improperly includes or facilitates access to protected or inaccurate material.
+`armenian-national-library-mcp` is independent software and does not host the authoritative NLA repository. Nevertheless, the maintainer will review good-faith reports that the project's code, documentation, fixtures, mappings, or project-controlled distribution improperly includes or facilitates access to protected or inaccurate material.
 
 ## Submit a request
 
-Email `surenakar@gmail.com` with the subject `nla-research-mcp rights request` and include:
+Email `surenakar@gmail.com` with the subject `armenian-national-library-mcp rights request` and include:
 
 - your name and a reliable contact method;
 - whether you are the rightsholder, data subject, authorized representative, or another reporter;

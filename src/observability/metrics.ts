@@ -14,6 +14,10 @@ export const noopMetrics: Metrics = Object.freeze({
   set: () => undefined,
 });
 
+export function metricsForMode(mode: "none" | "log", logger: Logger): Metrics {
+  return mode === "log" ? new LogMetrics(logger) : noopMetrics;
+}
+
 /** Optional exporter for deployments that collect structured stderr logs. */
 export class LogMetrics implements Metrics {
   constructor(private readonly logger: Logger) {}

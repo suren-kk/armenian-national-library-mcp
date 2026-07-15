@@ -1,5 +1,8 @@
 # National Library of Armenia MCP — Implementation Plan
 
+> [!NOTE]
+> The implemented initial-release surface is recorded in [Product scope and deliberate deferrals](docs/product-scope.md). The metadata-schema/metadata-field/bitstream-format registry tools and item/community/collection metadata resources proposed below are deliberately deferred: semantic tools are the supported bounded representation, while advanced approved reads remain available through endpoint capabilities. The README and protocol tests define the current public contract.
+
 ## 1. Objective and scope
 
 Build a provider-agnostic Model Context Protocol (MCP) server that gives any standards-compliant AI client—including Codex and Claude—safe, effective access to the National Library of Armenia's DSpace repository.

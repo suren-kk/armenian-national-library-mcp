@@ -8,9 +8,10 @@ import { registerContentTools } from "./register-content-tools.js";
 import { registerDiscoveryTools } from "./register-discovery-tools.js";
 import {
   READ_ONLY,
-  successResult,
+  observedSuccessResult,
   trustedResourceLink,
 } from "./tool-registration.js";
+import { noopMetrics, type Metrics } from "../observability/metrics.js";
 
 export { trustedResourceLink };
 
@@ -18,6 +19,7 @@ export function registerTools(
   server: McpServer,
   repository: NlaRepository,
   config: AppConfig,
+  metrics: Metrics = noopMetrics,
 ): void {
   server.registerTool(
     "get_repository_info",
@@ -27,10 +29,18 @@ export function registerTools(
       outputSchema: healthOutput.shape,
       annotations: READ_ONLY,
     },
-    () => successResult(healthOutput.parse(capabilitySummary(config))),
+    () => {
+      const startedAt = performance.now();
+      return observedSuccessResult(
+        "get_repository_info",
+        healthOutput.parse(capabilitySummary(config)),
+        startedAt,
+        metrics,
+      );
+    },
   );
 
-  registerDiscoveryTools(server, repository);
-  registerContentTools(server, repository);
-  registerApiTools(server, repository);
+  registerDiscoveryTools(server, repository, metrics);
+  registerContentTools(server, repository, metrics);
+  registerApiTools(server, repository, metrics);
 }

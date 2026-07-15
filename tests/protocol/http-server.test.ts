@@ -91,7 +91,7 @@ describe("Streamable HTTP server", () => {
     expect(health.headers.get("referrer-policy")).toBe("no-referrer");
     await expect(health.json()).resolves.toEqual({
       status: "ok",
-      service: "nla-research-mcp",
+      service: "armenian-national-library-mcp",
     });
     const readiness = await fetch(`${runtime.baseUrl}/readyz`);
     expect(readiness.status).toBe(200);
@@ -242,6 +242,37 @@ describe("Streamable HTTP server", () => {
     });
     expect(limited.status).toBe(429);
     expect(limited.headers.get("retry-after")).not.toBeNull();
+  });
+
+  it("terminates a slow partial request body at the configured deadline", async () => {
+    const runtime = await startTestServer(
+      httpConfig({ MCP_BODY_TIMEOUT_MS: "1000" }),
+    );
+    closeables.push(runtime);
+
+    const status = await new Promise<number>((resolve, reject) => {
+      const request = nodeRequest(
+        `${runtime.baseUrl}/mcp`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": "100",
+          },
+        },
+        (response) => {
+          response.resume();
+          response.once("end", () => {
+            resolve(response.statusCode ?? 0);
+            request.destroy();
+          });
+        },
+      );
+      request.once("error", reject);
+      request.write("{");
+    });
+
+    expect(status).toBe(408);
   });
 
   it("requires an unambiguous JSON request media type", async () => {

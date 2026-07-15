@@ -62,7 +62,7 @@ jobs:
             --tag "${IMAGE}:${MAJOR}.${MINOR}" \
             --tag "${IMAGE}:${MAJOR}" \
             --tag "${IMAGE}:latest" \
-            --tag nla-research-mcp:release-scan \
+            --tag armenian-national-library-mcp:release-scan \
             .
 
           CONTAINER_ID="$(docker run --detach --publish 127.0.0.1:3000:3000 "${IMAGE}:${VERSION}")"
@@ -80,7 +80,7 @@ jobs:
       - name: Scan exact release image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: nla-research-mcp:release-scan
+          image-ref: armenian-national-library-mcp:release-scan
           scanners: vuln,secret,misconfig
           severity: HIGH,CRITICAL
           ignore-unfixed: false
@@ -143,11 +143,11 @@ jobs:
         run: |
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             gh release upload "${RELEASE_TAG}" release/* --clobber
-            gh release edit "${RELEASE_TAG}" --title "nla-research-mcp ${RELEASE_TAG}"
+            gh release edit "${RELEASE_TAG}" --title "armenian-national-library-mcp ${RELEASE_TAG}"
           else
             gh release create "${RELEASE_TAG}" \
               release/* \
               --verify-tag \
               --generate-notes \
-              --title "nla-research-mcp ${RELEASE_TAG}"
+              --title "armenian-national-library-mcp ${RELEASE_TAG}"
           fi

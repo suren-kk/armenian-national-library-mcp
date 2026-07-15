@@ -7,6 +7,7 @@ import type {
 import type { z } from "zod";
 import { NlaError } from "../nla/errors.js";
 import { Logger } from "../observability/logger.js";
+import { noopMetrics, type Metrics } from "../observability/metrics.js";
 import {
   toolEnvelopeOutputs,
   type EnvelopeToolName,
@@ -100,13 +101,70 @@ export function successResult(
   };
 }
 
-function failureResult(error: unknown): CallToolResult {
+function resultCount(value: unknown): number | null {
+  const envelope = record(value);
+  const data = record(envelope?.data);
+  if (Array.isArray(envelope?.data)) return envelope.data.length;
+  if (Array.isArray(data?.results)) return data.results.length;
+  if (Array.isArray(data?.bundles)) {
+    let count = 0;
+    for (const bundleValue of data.bundles as unknown[]) {
+      const bundle = record(bundleValue);
+      if (Array.isArray(bundle?.files)) count += bundle.files.length;
+    }
+    return count;
+  }
+  return null;
+}
+
+function durationSince(startedAt: number): number {
+  return Math.max(0, Math.round(performance.now() - startedAt));
+}
+
+export function observedSuccessResult(
+  tool: string,
+  value: unknown,
+  startedAt: number,
+  metrics: Metrics = noopMetrics,
+  resourceLinks: readonly ResourceLink[] = [],
+): CallToolResult {
+  const durationMs = durationSince(startedAt);
+  const envelope = record(value);
+  toolLogger.info("tool_call_completed", {
+    tool,
+    durationMs,
+    resultCount: resultCount(value),
+    truncated:
+      typeof envelope?.truncated === "boolean" ? envelope.truncated : null,
+  });
+  metrics.increment("nla_tool_calls_total", 1, { tool, outcome: "success" });
+  metrics.observe("nla_tool_duration_ms", durationMs, {
+    tool,
+    outcome: "success",
+  });
+  return successResult(value, resourceLinks);
+}
+
+function failureResult(
+  tool: string,
+  error: unknown,
+  startedAt: number,
+  metrics: Metrics,
+): CallToolResult {
+  const durationMs = durationSince(startedAt);
   let value: Record<string, unknown>;
   if (error instanceof NlaError) {
     value = error.toJSON();
+    toolLogger.warn("tool_call_failed", {
+      tool,
+      durationMs,
+      errorCode: error.code,
+    });
   } else {
     const correlationId = randomUUID();
     toolLogger.error("unexpected_tool_error", {
+      tool,
+      durationMs,
       correlationId,
       errorName: error instanceof Error ? error.name : typeof error,
     });
@@ -118,6 +176,17 @@ function failureResult(error: unknown): CallToolResult {
       correlationId,
     };
   }
+  const errorCode =
+    typeof value.code === "string" ? value.code : "NLA_INTERNAL_ERROR";
+  metrics.increment("nla_tool_calls_total", 1, {
+    tool,
+    outcome: "error",
+    errorCode,
+  });
+  metrics.observe("nla_tool_duration_ms", durationMs, {
+    tool,
+    outcome: "error",
+  });
   return {
     isError: true,
     content: [{ type: "text", text: JSON.stringify(value) }],
@@ -133,6 +202,7 @@ export function registerEnvelopeTool<
   description: string,
   schema: S,
   handler: (args: z.output<S>, signal: AbortSignal) => Promise<unknown>,
+  metrics: Metrics = noopMetrics,
   resourceLinks: (value: unknown) => ResourceLink[] = () => [],
 ): void {
   const outputSchema = toolEnvelopeOutputs[name];
@@ -145,13 +215,20 @@ export function registerEnvelopeTool<
       annotations: READ_ONLY,
     },
     async (args, extra) => {
+      const startedAt = performance.now();
       try {
         const value = outputSchema.parse(
           await handler(args as z.output<S>, extra.signal),
         );
-        return successResult(value, resourceLinks(value));
+        return observedSuccessResult(
+          name,
+          value,
+          startedAt,
+          metrics,
+          resourceLinks(value),
+        );
       } catch (error) {
-        return failureResult(error);
+        return failureResult(name, error, startedAt, metrics);
       }
     },
   );

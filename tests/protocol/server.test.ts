@@ -4,6 +4,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createServer } from "../../src/server/create-server.js";
 import { testConfig } from "../helpers.js";
 
+function schemaDescription(value: unknown): unknown {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>).description
+    : undefined;
+}
+
 describe("MCP protocol", () => {
   const connected: Array<{ close(): Promise<void> }> = [];
   afterEach(async () => {
@@ -22,7 +28,7 @@ describe("MCP protocol", () => {
     ]);
 
     expect(client.getServerVersion()).toEqual({
-      name: "nla-research-mcp",
+      name: "armenian-national-library-mcp",
       version: "1.0.0",
     });
 
@@ -35,6 +41,26 @@ describe("MCP protocol", () => {
       ]),
     );
     expect(tools.tools).toHaveLength(23);
+    for (const tool of tools.tools) {
+      expect(tool.description, tool.name).toMatch(/read-only/i);
+      expect(tool.annotations, tool.name).toMatchObject({
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      });
+    }
+    const searchTool = tools.tools.find(
+      ({ name }) => name === "search_catalog",
+    );
+    const searchProperties = searchTool?.inputSchema.properties as
+      Record<string, unknown> | undefined;
+    expect(schemaDescription(searchProperties?.sort)).toEqual(
+      expect.stringContaining("field,ASC"),
+    );
+    expect(schemaDescription(searchProperties?.filters)).toEqual(
+      expect.stringContaining("get_search_facets"),
+    );
 
     const result = await client.callTool({
       name: "get_repository_info",

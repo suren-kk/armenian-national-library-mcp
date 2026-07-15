@@ -61,6 +61,32 @@ function boundedPageSize(requested: number, maximum: number): number {
   return Math.min(requested, maximum);
 }
 
+const UNKNOWN_REUSE_RIGHTS_WARNING =
+  "NLA provided no recognized reuse-rights declaration for this item. Public access does not grant permission to reproduce, publish, train on, or commercially reuse the content.";
+
+function reuseRightsWarnings(object: NormalizedDspaceObject): string[] {
+  return object.type === "item" && object.normalized.rights.status === "unknown"
+    ? [UNKNOWN_REUSE_RIGHTS_WARNING]
+    : [];
+}
+
+function assertItemContentEligible(object: NormalizedDspaceObject): void {
+  if (
+    object.type === "item" &&
+    (object.normalized.withdrawn === true ||
+      object.normalized.inArchive === false)
+  ) {
+    throw new NlaError(
+      "NLA_ACCESS_RESTRICTED",
+      "The item is withdrawn or unavailable from the archive",
+      {
+        withdrawn: object.normalized.withdrawn,
+        inArchive: object.normalized.inArchive,
+      },
+    );
+  }
+}
+
 export class NlaRepository {
   readonly content: NlaContentResolver;
   readonly rawApi: NlaRawApiService;
@@ -116,9 +142,13 @@ export class NlaRepository {
     const rawObjects = getEmbedded<unknown>(result, "objects").map(
       parseSearchObject,
     );
+    let hasUnknownReuseRights = false;
     const results = rawObjects.map((hit) => {
       const object = hit._embedded.indexableObject;
       const normalized = normalizeDspaceObject(object);
+      if (reuseRightsWarnings(normalized).length > 0) {
+        hasUnknownReuseRights = true;
+      }
       return {
         ...(options.include_metadata
           ? normalized
@@ -130,6 +160,7 @@ export class NlaRepository {
       ? stripUpstreamLinks(document._embedded.facets)
       : [];
 
+    const pageSizeWasCapped = options.page_size > size;
     return this.envelope(
       {
         results,
@@ -139,7 +170,11 @@ export class NlaRepository {
       },
       paginationFrom(result),
       response.source,
-      options.page_size > size ? [`page_size was capped at ${size}`] : [],
+      [
+        ...(pageSizeWasCapped ? [`page_size was capped at ${size}`] : []),
+        ...(hasUnknownReuseRights ? [UNKNOWN_REUSE_RIGHTS_WARNING] : []),
+      ],
+      pageSizeWasCapped,
     );
   }
 
@@ -313,6 +348,7 @@ export class NlaRepository {
     Envelope<{ item: NormalizedDspaceObject; bundles: BundleWithFiles[] }>
   > {
     const item = await this.getItem(identifier, signal);
+    assertItemContentEligible(item.data);
     const uuid = item.data.normalized.uuid;
     const bundles = await this.content.listItemFiles(uuid, options, signal);
     return this.envelope(
@@ -322,7 +358,8 @@ export class NlaRepository {
       },
       bundles.pagination,
       bundles.source,
-      bundles.warnings,
+      [...item.warnings, ...bundles.warnings],
+      bundles.truncated,
     );
   }
 
@@ -336,7 +373,8 @@ export class NlaRepository {
     signal?: AbortSignal,
   ) {
     const item = await this.getItem(identifier, signal);
-    return this.content.getItemText(
+    assertItemContentEligible(item.data);
+    const text = await this.content.getItemText(
       {
         itemUuid: item.data.normalized.uuid,
         bitstreamUuid: options.bitstreamUuid,
@@ -345,6 +383,10 @@ export class NlaRepository {
       },
       signal,
     );
+    return {
+      ...text,
+      warnings: [...item.warnings, ...text.warnings],
+    };
   }
 
   getBitstream(uuid: string, signal?: AbortSignal) {
@@ -419,7 +461,8 @@ export class NlaRepository {
       stripUpstreamLinks(document),
       paginationFrom(document),
       response.source,
-      [],
+      item.warnings,
+      false,
     );
   }
 
@@ -430,11 +473,13 @@ export class NlaRepository {
     const response = await this.client.getJson<unknown>(path, { signal });
     const document = requireHalDocument(response.data);
     validatedLinks(document, this.client.urlPolicy);
+    const normalized = normalizeDspaceObject(asDspaceObject(document));
     return this.envelope(
-      normalizeDspaceObject(asDspaceObject(document)),
+      normalized,
       null,
       response.source,
-      [],
+      reuseRightsWarnings(normalized),
+      false,
     );
   }
 
@@ -470,13 +515,14 @@ export class NlaRepository {
     pagination: Pagination | null,
     source: Envelope<T>["source"],
     warnings: string[],
+    truncated = warnings.length > 0,
   ): Envelope<T> {
     return {
       data,
       pagination,
       source,
       warnings,
-      truncated: warnings.length > 0,
+      truncated,
     };
   }
 }

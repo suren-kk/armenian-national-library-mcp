@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "source": "Sanitized, minimal shapes derived from the public NLA DSpace API",
+  "apiRoot": {
+    "type": "root",
+    "_links": {
+      "communities": {
+        "href": "https://api.nla.am/server/api/core/communities"
+      },
+      "dso": {
+        "href": "https://api.nla.am/server/api/dso/find{?uuid}",
+        "templated": true
+      }
+    }
+  },
+  "searchObject": {
+    "hitHighlights": null,
+    "nlaFixtureExtension": "preserved-search-field",
+    "_embedded": {
+      "indexableObject": {
+        "uuid": "fdff35c4-2c16-481c-9bc8-fee00be21121",
+        "name": "Sanitized fixture item",
+        "handle": "123456789/10740",
+        "type": "item",
+        "inArchive": true,
+        "discoverable": true,
+        "withdrawn": false,
+        "metadata": {
+          "dc.title": [
+            {
+              "value": "Sanitized fixture title",
+              "language": "en",
+              "authority": null,
+              "confidence": -1,
+              "place": 0
+            }
+          ],
+          "dc.rights": [
+            {
+              "value": "Rights status must be checked at the source",
+              "language": "en",
+              "authority": null,
+              "confidence": -1,
+              "place": 0
+            }
+          ],
+          "nla.local.catalogue": [
+            {
+              "value": "preserved-metadata-field",
+              "language": null,
+              "authority": null,
+              "confidence": -1,
+              "place": 0,
+              "upstreamExtension": "preserved-value-field"
+            }
+          ]
+        },
+        "nlaFixtureExtension": {
+          "catalogueCode": "preserved-object-field"
+        }
+      }
+    }
+  },
+  "facets": {
+    "_embedded": {
+      "facets": [
+        {
+          "name": "author",
+          "values": [
+            {
+              "label": "Sanitized Author",
+              "value": "Sanitized Author",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "page": {
+      "number": 0,
+      "size": 1,
+      "totalElements": 1,
+      "totalPages": 1
+    }
+  },
+  "browse": {
+    "_embedded": {
+      "entries": [
+        {
+          "value": "Sanitized Author",
+          "count": 1
+        }
+      ]
+    },
+    "page": {
+      "number": 0,
+      "size": 1,
+      "totalElements": 1,
+      "totalPages": 1
+    }
+  },
+  "communityPage": {
+    "_embedded": {
+      "communities": [
+        {
+          "uuid": "86bb1857-be35-401b-a03b-2b3ee405498f",
+          "name": "Sanitized community",
+          "type": "community",
+          "metadata": {}
+        }
+      ]
+    },
+    "page": {
+      "number": 0,
+      "size": 1,
+      "totalElements": 1,
+      "totalPages": 1
+    }
+  },
+  "collectionPage": {
+    "_embedded": {
+      "collections": [
+        {
+          "uuid": "6a7a1589-ec89-4d52-a323-bc59d52e6d51",
+          "name": "Sanitized collection",
+          "type": "collection",
+          "metadata": {}
+        }
+      ]
+    },
+    "page": {
+      "number": 0,
+      "size": 1,
+      "totalElements": 1,
+      "totalPages": 1
+    }
+  },
+  "bundlePage": {
+    "_embedded": {
+      "bundles": [
+        {
+          "uuid": "784dfd85-cc8a-4bc4-b130-4428a001dd0e",
+          "name": "TEXT",
+          "type": "bundle",
+          "metadata": {}
+        },
+        {
+          "uuid": "05a76b4d-2b2d-4ffb-b12f-324a77989047",
+          "name": "ORIGINAL",
+          "type": "bundle",
+          "metadata": {}
+        }
+      ]
+    },
+    "page": {
+      "number": 0,
+      "size": 2,
+      "totalElements": 2,
+      "totalPages": 1
+    }
+  },
+  "textBitstream": {
+    "uuid": "4ead233d-ef4d-4db6-b6f4-a5bb3783abf0",
+    "name": "document.txt",
+    "bundleName": "TEXT",
+    "sizeBytes": 83043,
+    "sequenceId": 1,
+    "type": "bitstream",
+    "metadata": {},
+    "checkSum": {
+      "checkSumAlgorithm": "MD5",
+      "value": "00000000000000000000000000000000"
+    }
+  },
+  "originalPdfBitstream": {
+    "uuid": "c81247ed-05ac-47e1-8eef-b7b0290d73ec",
+    "name": "document.pdf",
+    "bundleName": "ORIGINAL",
+    "sizeBytes": 120000,
+    "sequenceId": 1,
+    "type": "bitstream",
+    "metadata": {}
+  },
+  "formats": {
+    "text": {
+      "id": 6,
+      "shortDescription": "Text",
+      "description": "Plain text",
+      "mimetype": "text/plain",
+      "supportLevel": "KNOWN",
+      "internal": false,
+      "extensions": ["txt"],
+      "type": "bitstreamformat"
+    },
+    "pdf": {
+      "id": 4,
+      "shortDescription": "Adobe PDF",
+      "description": "Portable Document Format",
+      "mimetype": "application/pdf",
+      "supportLevel": "KNOWN",
+      "internal": false,
+      "extensions": ["pdf"],
+      "type": "bitstreamformat"
+    }
+  },
+  "accessStatuses": {
+    "public": {
+      "status": "open.access",
+      "embargoDate": null,
+      "type": "accessStatus"
+    },
+    "embargoed": {
+      "status": "embargo.access",
+      "embargoDate": "2030-01-01T00:00:00Z",
+      "type": "accessStatus"
+    }
+  },
+  "httpErrors": [
+    { "status": 401, "code": "NLA_AUTHENTICATION_REQUIRED" },
+    { "status": 403, "code": "NLA_ACCESS_RESTRICTED" },
+    { "status": 404, "code": "NLA_NOT_FOUND" },
+    { "status": 429, "code": "NLA_RATE_LIMITED" },
+    { "status": 503, "code": "NLA_UPSTREAM_UNAVAILABLE" }
+  ]
+}

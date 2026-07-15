@@ -43,3 +43,54 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: false
           exit-code: "1"
+
+  container:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Build the exact candidate image
+        run: >-
+          docker build
+          --build-arg VERSION=ci
+          --build-arg REVISION="${GITHUB_SHA}"
+          --build-arg SOURCE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          --tag armenian-national-library-mcp:ci
+          .
+      - name: Run with production-equivalent restrictions
+        run: |
+          CONTAINER_ID="$(docker run --detach \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges:true \
+            --pids-limit 128 \
+            --memory 512m \
+            --cpus 1 \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
+            --publish 127.0.0.1:3000:3000 \
+            armenian-national-library-mcp:ci)"
+          trap 'docker rm --force "${CONTAINER_ID}" >/dev/null' EXIT
+          test "$(docker inspect --format '{{.Config.User}}' "${CONTAINER_ID}")" = "node"
+          test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "${CONTAINER_ID}")" = "true"
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --silent http://127.0.0.1:3000/healthz >/dev/null; then
+              exit 0
+            fi
+            if [ "${attempt}" -eq 5 ]; then
+              docker logs "${CONTAINER_ID}"
+              exit 1
+            fi
+            sleep 2
+          done
+      - name: Scan the exact candidate image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: armenian-national-library-mcp:ci
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
