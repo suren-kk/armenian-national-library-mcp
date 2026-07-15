@@ -96,6 +96,7 @@ Validation run on 2026-07-15 against this working tree:
 - Endpoint drift validation passed all 80 advertised relations with no registry changes or inconclusive failures; 59 base relations are explicitly classified as not safely/directly probeable rather than silently skipped.
 - The registry-backed high-severity dependency audit reported zero vulnerabilities.
 - The version 1.0.0 local performance baseline measured clean runtime commit `ed0a011a55cab6bf2c5902a591d13d6d90de6925` over five iterations. Cold P95 latency was 14–255 ms, and all cacheable warm journeys completed in 0–2 ms with no upstream calls.
+- Checksummed npm, source, manifest, and CycloneDX SBOM artifacts were reproduced from a clean commit, every SHA-256 checksum passed, and npm's publication dry run accepted the exact 50-file public tarball. Actual registry publication remains blocked on npm authentication and trusted-publisher configuration.
 
 This is local development evidence. It does not replace the clean-candidate provider, neutral-client, private HTTP, GitHub Actions candidate-image, or publication evidence listed under the remaining release gates.
 

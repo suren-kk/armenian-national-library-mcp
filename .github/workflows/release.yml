@@ -99,7 +99,7 @@ jobs:
         run: |
           PACKAGE_NAME="$(node --input-type=module -e "import manifest from './package.json' with { type: 'json' }; process.stdout.write(manifest.name)")"
           VERSION="${RELEASE_TAG#v}"
-          TARBALL="$(find release -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          TARBALL="$(find ./release -maxdepth 1 -type f -name '*.tgz' -print -quit)"
           if [ -z "${TARBALL}" ]; then
             echo "Release npm tarball was not found" >&2
             exit 1
