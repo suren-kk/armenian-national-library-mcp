@@ -74,7 +74,7 @@ jobs:
             --publish 127.0.0.1:3000:3000 \
             armenian-national-library-mcp:ci)"
           trap 'docker rm --force "${CONTAINER_ID}" >/dev/null' EXIT
-          test "$(docker inspect --format '{{.Config.User}}' "${CONTAINER_ID}")" = "node"
+          test "$(docker inspect --format '{{.Config.User}}' "${CONTAINER_ID}")" = "65532:65532"
           test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "${CONTAINER_ID}")" = "true"
           for attempt in 1 2 3 4 5; do
             if curl --fail --silent http://127.0.0.1:3000/healthz >/dev/null; then
