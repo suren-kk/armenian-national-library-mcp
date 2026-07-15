@@ -23,7 +23,7 @@ A grounded result should identify the NLA record, include its canonical catalogu
 
 ## Current availability
 
-The public package identity is `@suren-kk/armenian-national-library-mcp`. Until version `1.0.0` appears on npm, use the copyable [source setup](#build-from-source). See the [Armenian quick start](docs/quickstart-hy.md) for a concise Armenian-language walkthrough.
+Version `1.0.0` is available from npm as `@suren-kk/armenian-national-library-mcp`. Use the client commands below or the copyable [source setup](#build-from-source). See the [Armenian quick start](docs/quickstart-hy.md) for a concise Armenian-language walkthrough.
 
 ## How it works
 
@@ -46,7 +46,7 @@ Local extraction/OCR remains outside the current server scope.
 
 ## Install and connect a client
 
-The npm package name is `@suren-kk/armenian-national-library-mcp`. Before its first publication, use the source setup below.
+The npm package name is `@suren-kk/armenian-national-library-mcp`.
 
 Add it to Codex:
 

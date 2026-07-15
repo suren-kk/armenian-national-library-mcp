@@ -10,7 +10,7 @@ The locally implementable engineering scope in the plan is complete for the appr
 
 The security, technical, product, and implementation-plan reviews have now been reconciled. Earlier findings about resource-link promotion, cache limits, output schemas, same-field filters, file pagination, active MIME types, untrusted upstream schemas/links, queued cancellation, error leakage, package consumption, live journey breadth, and inconclusive access probes are remediated and regression-tested. Proposed registry tools and object metadata resources are deliberately deferred in the approved product scope rather than silently unfinished.
 
-Plan completion is blocked only by external operations: full Codex/Claude corpus results, neutral-client acceptance, repository controls, and actual publication. These cannot all be truthfully completed by changing local source code alone.
+The approved engineering and publication scope is complete. Full Codex/Claude corpus results and neutral-client/private-endpoint acceptance remain explicitly deferred owner validation rather than release blockers for the independent initial publication.
 
 ## Status by plan area
 
@@ -21,12 +21,12 @@ Plan completion is blocked only by external operations: full Codex/Claude corpus
 | Semantic tools          | Complete for approved scope | 23 tools, specific output schemas, official-client success/failure coverage, descriptions, defaults, and annotations                                |
 | Text and files          | Complete for approved scope | Lossless continuation, bounded discovery, whole-file ceilings, verified inline allowlist, rights/access separation, and canonical complex-file URLs |
 | Endpoint coverage       | Complete                    | 80/80 registry relations; controlled raw reads; conclusive direct probes or explicit non-probeable classification                                   |
-| Remote transport        | Implementation complete     | Stateless HTTP, authentication modes, quotas, slow-body limits, readiness, and hardened container CI are implemented; external run evidence remains |
+| Remote transport        | Complete for approved scope | Stateless HTTP, authentication modes, quotas, slow-body limits, readiness, hardened container CI, and a scanned published image                     |
 | Security hardening      | Complete for approved scope | Threat model and applicable deterministic adversarial tests cover the supported read-only behavior                                                  |
 | Evals and compatibility | Infrastructure complete     | Corpus, scorer, stdio harness, and evidence format exist; full same-commit provider/client execution remains                                        |
-| Release                 | Automation complete         | Public identity and owner posture are confirmed; platform configuration, tag, and publication remain                                                |
+| Release                 | Complete                    | Public repository/package, protected automation, verified signed tag, checksummed release assets, attestations, and scanned GHCR image              |
 
-Unchecked entries below require external access, owner judgment, paid/provider-backed execution, or a clean committed release candidate. A partially complete gate remains unchecked until all of its evidence exists.
+Unchecked entries below require external access, owner judgment, paid/provider-backed execution, or a private test environment. A partially complete gate remains unchecked until all of its evidence exists.
 
 ## Remaining release gates
 
@@ -34,7 +34,7 @@ Unchecked entries below require external access, owner judgment, paid/provider-b
 
 - [ ] **Complete neutral-client acceptance.** Follow `docs/client-acceptance.md` with Codex, Claude, and MCP Inspector against both the packed stdio executable and one TLS-protected authenticated/private `/mcp` endpoint on the same candidate revision. Retain sanitized evidence for discovery, representative tools/resources, stateless requests, rejected credentials/origins, and shutdown. **Provider/client-backed portions are deferred with the evaluation; a private test environment and client access remain required.**
 
-- [ ] **Activate repository controls and publish verified artifacts.** Verify required branch checks, Actions, Dependabot/security settings, private vulnerability reporting, protected release environment, personal npm scope/trusted publishing, and GHCR permissions. After every prior gate passes, create the reviewed signed tag and verify npm provenance/integrity, checksummed source assets, attestations, exact image digest, and the clean-user flow. **Owner credentials and GitHub/npm configuration required.**
+- [x] **Activate repository controls and publish verified artifacts.** The repository is public with required checks, signed-commit protection, read-only default workflow permissions, SHA-pinned Actions enforcement, Dependabot/security updates, secret scanning/push protection, private vulnerability reporting, and a tag-restricted `release` environment. npm `1.0.0` is public and byte-identical to the tagged 50-file artifact; the exact workflow is registered as the trusted OIDC publisher for future versions. GitHub verifies the signed tag, checksummed release assets and Sigstore attestations pass, the public GHCR stable tags resolve to one scanned digest, and a clean registry install exposes the expected CLI. The first npm version was necessarily created interactively before npm allowed the package's trusted-publisher relationship, so npm provenance begins with subsequent workflow-published versions; GitHub artifact attestations cover the initial tarball.
 
 ## Owner release decisions
 
@@ -90,15 +90,15 @@ Unchecked entries below require external access, owner judgment, paid/provider-b
 
 Validation run on 2026-07-15 against this working tree:
 
-- `npm run ci` passed formatting, lint, type checking, release metadata, dependency-license policy, coverage, build, and package-consumer validation: 37 deterministic test files passed, 228 tests passed, and 8 opt-in live tests were skipped as designed. Aggregate coverage was 83.49% statements, 74.30% branches, 89.30% functions, and 84.49% lines.
+- `npm run ci` passed formatting, lint, type checking, release metadata, dependency-license policy, coverage, build, and package-consumer validation: 37 deterministic test files passed, 229 tests passed, and 8 opt-in live tests were skipped as designed. Aggregate coverage was 83.49% statements, 74.30% branches, 89.30% functions, and 84.49% lines.
 - The packed `suren-kk-armenian-national-library-mcp-1.0.0.tgz` contained 50 files and passed installation plus official-client discovery/resource checks from a clean temporary consumer over both stdio and Streamable HTTP.
 - The opt-in live integration suite passed all 8 current NLA public-read journeys.
 - Endpoint drift validation passed all 80 advertised relations with no registry changes or inconclusive failures; 59 base relations are explicitly classified as not safely/directly probeable rather than silently skipped.
 - The registry-backed high-severity dependency audit reported zero vulnerabilities.
 - The version 1.0.0 local performance baseline measured clean runtime commit `ed0a011a55cab6bf2c5902a591d13d6d90de6925` over five iterations. Cold P95 latency was 14–255 ms, and all cacheable warm journeys completed in 0–2 ms with no upstream calls.
-- Checksummed npm, source, manifest, and CycloneDX SBOM artifacts were reproduced from a clean commit, every SHA-256 checksum passed, and npm's publication dry run accepted the exact 50-file public tarball. Actual registry publication remains blocked on npm authentication and trusted-publisher configuration.
+- Version `1.0.0` was published from signed commit `5b01b9b5102ceb24f32e180d852ba60d23f9dc7e`. The public npm tarball, GitHub release tarball, and locally validated artifact share SHA-256 `8146a641b8faea17f479f2ee9dd8aac46349b4e3bac7b6c5e5673009d6bd5c40`; a clean registry install succeeded. GitHub verified the SSH-signed tag, every downloaded release checksum, the npm-tarball and SARIF attestations, and GHCR tags `1.0.0`, `1.0`, `1`, and `latest` at digest `sha256:d20b192e0fe6309ded7e48040d7dfb3e13eb8bd7328545616eb0552c482142fb`.
 
-This is local development evidence. It does not replace the clean-candidate provider, neutral-client, private HTTP, GitHub Actions candidate-image, or publication evidence listed under the remaining release gates.
+This evidence does not replace the deferred full-provider, neutral-client, or private authenticated HTTP acceptance work listed above.
 
 ## Deliberately deferred or optional scope
 
@@ -112,4 +112,4 @@ This is local development evidence. It does not replace the clean-candidate prov
 
 ## Current completion decision
 
-**Engineering status: locally complete for the approved initial scope. Release status: gated.** Do not mark the overall plan or public release complete until the remaining release gates above are evidenced on one clean candidate revision.
+**Engineering status: complete for the approved initial scope. Release status: version 1.0.0 published and verified.** The remaining unchecked items are explicitly deferred validation work and should be completed before claiming full cross-provider/client qualification.
