@@ -58,7 +58,7 @@ Readiness returns `503` when the configured NLA API is unavailable. Do not expos
 
 ## Container runtime
 
-`Dockerfile` uses a digest-pinned Node base and runs as the unprivileged `node` user. `compose.yaml` supplies controls that cannot be encoded in an image: a read-only root filesystem, all Linux capabilities dropped, no-new-privileges, PID/memory/CPU limits, a constrained temporary filesystem, and loopback-only port publishing.
+`Dockerfile` uses a digest-pinned distroless Node runtime and runs as its unprivileged numeric nonroot user. `compose.yaml` supplies controls that cannot be encoded in an image: a read-only root filesystem, all Linux capabilities dropped, no-new-privileges, PID/memory/CPU limits, a constrained temporary filesystem, and loopback-only port publishing.
 
 ```bash
 docker compose up --build
