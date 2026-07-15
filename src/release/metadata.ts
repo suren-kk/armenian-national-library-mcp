@@ -142,10 +142,8 @@ export function releaseMetadataIssues({
     issues.push("package.json keywords must include mcp and dspace");
   }
   const bin = objectValue(packageManifest.bin);
-  if (bin?.["armenian-national-library-mcp"] !== "dist/index.js") {
-    issues.push(
-      "package.json must expose the armenian-national-library-mcp CLI binary",
-    );
+  if (bin?.["nla-research-mcp"] !== "dist/index.js") {
+    issues.push("package.json must expose the nla-research-mcp CLI binary");
   }
   const publishedFiles = Array.isArray(packageManifest.files)
     ? new Set(packageManifest.files)

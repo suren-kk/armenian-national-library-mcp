@@ -3,6 +3,9 @@ import { z } from "zod";
 export const evalExpectationSchema = z.object({
   firstTool: z.string().min(1),
   requiredTools: z.array(z.string().min(1)).min(1),
+  alternativeRequiredTools: z
+    .array(z.array(z.string().min(1)).min(1))
+    .default([]),
   forbiddenTools: z.array(z.string().min(1)).default([]),
   requiresGrounding: z.boolean().default(true),
   requiresCitation: z.boolean().default(false),
@@ -29,9 +32,13 @@ export const evalCaseSchema = z
         path: ["expectation", "firstTool"],
       });
     }
-    const forbiddenRequired = testCase.expectation.requiredTools.filter(
-      (tool) => testCase.expectation.forbiddenTools.includes(tool),
-    );
+    const requiredPlans = [
+      testCase.expectation.requiredTools,
+      ...testCase.expectation.alternativeRequiredTools,
+    ];
+    const forbiddenRequired = requiredPlans
+      .flat()
+      .filter((tool) => testCase.expectation.forbiddenTools.includes(tool));
     if (forbiddenRequired.length > 0) {
       context.addIssue({
         code: "custom",

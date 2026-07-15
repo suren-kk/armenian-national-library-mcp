@@ -176,8 +176,8 @@ async function main(): Promise<void> {
       "node_modules",
       ".bin",
       process.platform === "win32"
-        ? "armenian-national-library-mcp.cmd"
-        : "armenian-national-library-mcp",
+        ? "nla-research-mcp.cmd"
+        : "nla-research-mcp",
     );
     const transport = new StdioClientTransport({
       command: executable,

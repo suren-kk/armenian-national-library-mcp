@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Releases follow [Semant
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-15
+
+### Added
+
+- Added a deterministic 22-case provider-evaluation fixture and authenticated Codex/Claude runner with raw trace retention, transient retry handling, and clean-revision enforcement.
+
+### Changed
+
+- Restored `nla-research-mcp` as the CLI command and MCP server name while retaining `@suren-kk/armenian-national-library-mcp` as the npm package name.
+- Updated the Node container base, GitHub checkout/setup actions, and `tsx`; deferred TypeScript 7 until the supported lint toolchain catches up.
+- Made provider scoring accept explicitly equivalent tool plans and harmless call ordering while still counting repeated requirements.
+
+### Fixed
+
+- Correctly associate Claude MCP calls with their results and validate successful, health, and expected error response envelopes.
+- Strengthened automated checks for restricted content, false download identifiers, bounded document reads, prompt injection, and proof that rejected external URLs caused no outbound request.
+
 ## [1.0.0] - 2026-07-15
 
 ### Added

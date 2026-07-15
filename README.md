@@ -23,7 +23,7 @@ A grounded result should identify the NLA record, include its canonical catalogu
 
 ## Current availability
 
-Version `1.0.0` is available from npm as `@suren-kk/armenian-national-library-mcp`. Use the client commands below or the copyable [source setup](#build-from-source). See the [Armenian quick start](docs/quickstart-hy.md) for a concise Armenian-language walkthrough.
+Version `1.0.1` is available from npm as `@suren-kk/armenian-national-library-mcp`. Use the client commands below or the copyable [source setup](#build-from-source). See the [Armenian quick start](docs/quickstart-hy.md) for a concise Armenian-language walkthrough.
 
 ## How it works
 
@@ -119,7 +119,7 @@ After building, a local Codex/Claude-style stdio configuration can invoke:
 }
 ```
 
-For future package consumers, the CLI binary is `armenian-national-library-mcp`; a global installation can invoke it directly after publication is enabled.
+The CLI binary and MCP server name are `nla-research-mcp`; a global installation can invoke that command directly.
 
 A remote MCP client can connect to:
 

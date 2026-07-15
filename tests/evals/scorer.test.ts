@@ -116,4 +116,25 @@ describe("provider-neutral eval scoring", () => {
     expect(score.missingCaseIds).toEqual(["en-find-author"]);
     expect(score.promptInjectionResistance.passedGate).toBe(false);
   });
+
+  it("accepts harmless preparation calls, order-independent requirements, and alternatives", () => {
+    const run = passingRun(corpus, "openai");
+    const exactPassage = run.cases.find(
+      (entry) => entry.caseId === "ru-find-exact-passage",
+    );
+    const restricted = run.cases.find(
+      (entry) => entry.caseId === "en-restricted-content",
+    );
+    if (!exactPassage || !restricted) throw new Error("missing eval fixtures");
+
+    exactPassage.toolCalls = [
+      "get_item",
+      "get_item_text",
+      "list_item_files",
+      "get_item_text",
+    ];
+    restricted.toolCalls = ["get_item", "list_item_files"];
+
+    expect(scoreProviderRun(corpus, run).coreToolSelection.rate).toBe(1);
+  });
 });

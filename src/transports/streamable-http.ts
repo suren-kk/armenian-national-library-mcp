@@ -433,7 +433,7 @@ export function createHttpApplication(
         jsonResponse(
           response,
           200,
-          { status: "ok", service: "armenian-national-library-mcp" },
+          { status: "ok", service: "nla-research-mcp" },
           headOnly,
         );
         return;
@@ -488,7 +488,7 @@ export function createHttpApplication(
         closeConnectionAfterResponse(request, response);
         response.setHeader(
           "WWW-Authenticate",
-          'Bearer realm="armenian-national-library-mcp"',
+          'Bearer realm="nla-research-mcp"',
         );
         logger.warn("authentication_rejected");
         mcpError(response, 401, -32_000, "Authentication required");

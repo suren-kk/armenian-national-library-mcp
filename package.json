@@ -1,6 +1,6 @@
 {
   "name": "@suren-kk/armenian-national-library-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Independent, unofficial research MCP integration for the National Library of Armenia public DSpace repository",
   "author": {
     "name": "Suren Karapetyan",
@@ -35,7 +35,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "armenian-national-library-mcp": "dist/index.js"
+    "nla-research-mcp": "dist/index.js"
   },
   "files": [
     "dist/**/*.js",
@@ -76,6 +76,7 @@
     "eval:validate": "vitest run tests/evals tests/compatibility",
     "eval:score": "node --import tsx src/scripts/score-evals.ts",
     "eval:score:built": "node dist/scripts/score-evals.js",
+    "eval:providers": "npm run build && node --import tsx src/scripts/run-provider-evals.ts",
     "compat:clients": "npm run build && node --import tsx src/scripts/check-provider-compatibility.ts",
     "compat:clients:built": "node dist/scripts/check-provider-compatibility.js",
     "package:test": "node --import tsx src/scripts/check-packed-package.ts",
@@ -100,7 +101,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "10.7.0",
     "prettier": "3.9.5",
-    "tsx": "4.20.6",
+    "tsx": "4.23.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.64.0",
     "vitest": "4.1.10"

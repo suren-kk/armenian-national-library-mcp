@@ -5,7 +5,7 @@ function validInput() {
   return {
     packageManifest: {
       name: "armenian-national-library-mcp",
-      version: "1.0.0",
+      version: "1.0.1",
       private: true,
       description:
         "Independent, unofficial research MCP integration for the National Library of Armenia public DSpace repository",
@@ -22,7 +22,7 @@ function validInput() {
       },
       keywords: ["mcp", "dspace"],
       license: "MIT",
-      bin: { "armenian-national-library-mcp": "dist/index.js" },
+      bin: { "nla-research-mcp": "dist/index.js" },
       files: [
         "dist/**/*.js",
         "config/endpoint-matrix.yaml",
@@ -39,12 +39,12 @@ function validInput() {
     },
     lockManifest: {
       name: "armenian-national-library-mcp",
-      version: "1.0.0",
+      version: "1.0.1",
       packages: {
-        "": { name: "armenian-national-library-mcp", version: "1.0.0" },
+        "": { name: "armenian-national-library-mcp", version: "1.0.1" },
       },
     },
-    changelog: "# Changelog\n\n## [1.0.0] - 2026-07-14\n",
+    changelog: "# Changelog\n\n## [1.0.1] - 2026-07-15\n",
   };
 }
 
@@ -59,12 +59,12 @@ describe("release metadata", () => {
       releaseMetadataIssues({
         ...input,
         packageManifest: { ...input.packageManifest, private: true },
-        expectedTag: "v1.0.1",
+        expectedTag: "v1.0.2",
       }),
     ).toEqual(
       expect.arrayContaining([
         "package.json must not be private for a public release; configure the personal npm scope first",
-        "release tag v1.0.1 does not match package version v1.0.0",
+        "release tag v1.0.2 does not match package version v1.0.1",
       ]),
     );
   });
@@ -132,7 +132,7 @@ describe("release metadata", () => {
           packages: {
             "": {
               name: "@researcher/armenian-national-library-mcp",
-              version: "1.0.0",
+              version: "1.0.1",
             },
           },
         },

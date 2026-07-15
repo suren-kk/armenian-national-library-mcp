@@ -28,8 +28,8 @@ describe("MCP protocol", () => {
     ]);
 
     expect(client.getServerVersion()).toEqual({
-      name: "armenian-national-library-mcp",
-      version: "1.0.0",
+      name: "nla-research-mcp",
+      version: "1.0.1",
     });
 
     const tools = await client.listTools();

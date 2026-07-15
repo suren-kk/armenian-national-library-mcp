@@ -1,2 +1,2 @@
-export const SERVER_NAME = "armenian-national-library-mcp";
-export const SERVER_VERSION = "1.0.0";
+export const SERVER_NAME = "nla-research-mcp";
+export const SERVER_VERSION = "1.0.1";

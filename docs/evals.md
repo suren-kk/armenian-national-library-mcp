@@ -8,11 +8,13 @@ The eval suite separates deterministic release checks from model-dependent runs.
 
 Each case declares:
 
-- the expected first tool and required ordered tool subsequence;
+- a preferred first tool for diagnostics and one or more valid required-tool plans;
 - tools that must not be called;
 - whether grounding, a valid citation, restricted-content handling, prompt-injection resistance, or outbound-host rejection must be assessed.
 
 Upstream text remains untrusted data during evaluation. Never copy a corpus instruction into server instructions or tool descriptions.
+
+Required calls are count-aware but order-independent: repeated requirements must be satisfied, while harmless discovery or preparation calls do not fail a case. Explicit alternative plans cover equivalent public APIs such as returning a verified bitstream through `get_bitstream` or `get_file_download`. The preferred first tool remains useful for trace review, but is not itself a release gate.
 
 ## Result format and scoring
 
@@ -49,6 +51,16 @@ Score a complete OpenAI and Anthropic matrix together:
 ```bash
 npm run eval:score -- evals/results/codex.json evals/results/claude.json
 ```
+
+Run the full deterministic-fixture corpus through the authenticated local clients from a clean commit:
+
+```bash
+npm run eval:providers -- codex /private/tmp/nla-codex-eval.json
+npm run eval:providers -- claude /private/tmp/nla-claude-eval.json
+npm run eval:score -- /private/tmp/nla-codex-eval.json /private/tmp/nla-claude-eval.json
+```
+
+The runner builds and launches an isolated stdio MCP fixture server for each case. It records raw client traces outside the repository, retries one transient provider failure, validates every MCP success or error envelope, and refuses release baselines from dirty worktrees. Set `NLA_EVAL_ALLOW_DIRTY=1` only for non-release diagnostics. Provider clients use their existing local authentication; the fixture server receives explicitly blank provider credential variables and makes no live NLA requests.
 
 The command rejects duplicate provider-family runs and mixed server commits, then fails unless both provider families pass every release gate:
 

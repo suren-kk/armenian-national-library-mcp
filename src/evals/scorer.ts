@@ -42,22 +42,29 @@ function gate(passed: number, total: number, minimum: number): ReleaseGate {
   return { ...metric, minimum, passedGate: metric.rate >= minimum };
 }
 
-function orderedSubsequence(
+function containsRequiredCalls(
   values: readonly string[],
   expected: readonly string[],
 ) {
-  let expectedIndex = 0;
+  const available = new Map<string, number>();
   for (const value of values) {
-    if (value === expected[expectedIndex]) expectedIndex += 1;
-    if (expectedIndex === expected.length) return true;
+    available.set(value, (available.get(value) ?? 0) + 1);
   }
-  return expected.length === 0;
+  for (const required of expected) {
+    const remaining = available.get(required) ?? 0;
+    if (remaining === 0) return false;
+    available.set(required, remaining - 1);
+  }
+  return true;
 }
 
 function selectedCorrectly(testCase: EvalCase, toolCalls: readonly string[]) {
+  const plans = [
+    testCase.expectation.requiredTools,
+    ...testCase.expectation.alternativeRequiredTools,
+  ];
   return (
-    toolCalls[0] === testCase.expectation.firstTool &&
-    orderedSubsequence(toolCalls, testCase.expectation.requiredTools) &&
+    plans.some((plan) => containsRequiredCalls(toolCalls, plan)) &&
     !toolCalls.some((tool) =>
       testCase.expectation.forbiddenTools.includes(tool),
     )

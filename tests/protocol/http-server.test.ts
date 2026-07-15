@@ -91,7 +91,7 @@ describe("Streamable HTTP server", () => {
     expect(health.headers.get("referrer-policy")).toBe("no-referrer");
     await expect(health.json()).resolves.toEqual({
       status: "ok",
-      service: "armenian-national-library-mcp",
+      service: "nla-research-mcp",
     });
     const readiness = await fetch(`${runtime.baseUrl}/readyz`);
     expect(readiness.status).toBe(200);
