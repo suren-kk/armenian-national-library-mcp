@@ -91,7 +91,7 @@
     "release:artifacts:built": "node dist/scripts/build-release-artifacts.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "yaml": "2.9.0",
     "zod": "4.4.3"
   },
