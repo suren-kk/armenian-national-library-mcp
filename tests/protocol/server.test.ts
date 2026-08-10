@@ -2,6 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { createServer } from "../../src/server/create-server.js";
+import { SERVER_VERSION } from "../../src/version.js";
 import { testConfig } from "../helpers.js";
 
 function schemaDescription(value: unknown): unknown {
@@ -29,7 +30,7 @@ describe("MCP protocol", () => {
 
     expect(client.getServerVersion()).toEqual({
       name: "nla-research-mcp",
-      version: "1.0.1",
+      version: SERVER_VERSION,
     });
 
     const tools = await client.listTools();

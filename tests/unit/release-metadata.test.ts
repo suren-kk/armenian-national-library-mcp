@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { releaseMetadataIssues } from "../../src/release/metadata.js";
+import { SERVER_VERSION } from "../../src/version.js";
 
 function validInput() {
   return {
     packageManifest: {
       name: "armenian-national-library-mcp",
-      version: "1.0.1",
+      version: SERVER_VERSION,
       private: true,
       description:
         "Independent, unofficial research MCP integration for the National Library of Armenia public DSpace repository",
@@ -39,12 +40,12 @@ function validInput() {
     },
     lockManifest: {
       name: "armenian-national-library-mcp",
-      version: "1.0.1",
+      version: SERVER_VERSION,
       packages: {
-        "": { name: "armenian-national-library-mcp", version: "1.0.1" },
+        "": { name: "armenian-national-library-mcp", version: SERVER_VERSION },
       },
     },
-    changelog: "# Changelog\n\n## [1.0.1] - 2026-07-15\n",
+    changelog: `# Changelog\n\n## [${SERVER_VERSION}] - 2026-07-15\n`,
   };
 }
 
@@ -59,12 +60,12 @@ describe("release metadata", () => {
       releaseMetadataIssues({
         ...input,
         packageManifest: { ...input.packageManifest, private: true },
-        expectedTag: "v1.0.2",
+        expectedTag: "v99.0.0",
       }),
     ).toEqual(
       expect.arrayContaining([
         "package.json must not be private for a public release; configure the personal npm scope first",
-        "release tag v1.0.2 does not match package version v1.0.1",
+        `release tag v99.0.0 does not match package version v${SERVER_VERSION}`,
       ]),
     );
   });
@@ -176,7 +177,7 @@ describe("release metadata", () => {
           packages: {
             "": {
               name: "@researcher/armenian-national-library-mcp",
-              version: "1.0.1",
+              version: SERVER_VERSION,
             },
           },
         },

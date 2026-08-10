@@ -4,6 +4,20 @@ All notable changes to this project are documented here. Releases follow [Semant
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-08-10
+
+### Changed
+
+- Updated the Node container base image to `26.7.0-bookworm-slim`, the pinned `github/codeql-action` and `actions/attest` releases, and the `tsx` and `typescript-eslint` development toolchain.
+
+### Fixed
+
+- Validated the `repository`, `homepage`, and `bugs` project URLs in the release-metadata check by parsed host instead of substring match, so hosts such as `evil.example/github.com` and `github.com.evil.example` no longer pass.
+
+### Security
+
+- Cleared all outstanding dependency advisories in the lockfile: `hono` 4.13.1, `fast-uri` 3.1.5, `ip-address` 10.4.0, and the `postcss`/`nanoid` development chain.
+
 ## [1.0.1] - 2026-07-15
 
 ### Added
