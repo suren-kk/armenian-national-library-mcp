@@ -24,6 +24,22 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Substring checks such as url.includes("github.com/") accept
+// https://evil.example/github.com/x and https://github.com.evil.example/x.
+// Parse the URL and compare the host so only the real canonical host passes.
+function isGitHubUrl(value: unknown): boolean {
+  if (typeof value !== "string") {
+    return false;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+  return parsed.host === "github.com" && parsed.pathname.length > 1;
+}
+
 export function releaseMetadataIssues({
   packageManifest,
   lockManifest,
@@ -119,20 +135,13 @@ export function releaseMetadataIssues({
   }
   const repository = objectValue(packageManifest.repository);
   const bugs = objectValue(packageManifest.bugs);
-  if (
-    repository?.type !== "git" ||
-    typeof repository.url !== "string" ||
-    !repository.url.includes("github.com/")
-  ) {
+  if (repository?.type !== "git" || !isGitHubUrl(repository.url)) {
     issues.push("package.json must declare the canonical GitHub repository");
   }
-  if (
-    typeof packageManifest.homepage !== "string" ||
-    !packageManifest.homepage.includes("github.com/")
-  ) {
+  if (!isGitHubUrl(packageManifest.homepage)) {
     issues.push("package.json must declare the canonical GitHub homepage");
   }
-  if (typeof bugs?.url !== "string" || !bugs.url.includes("github.com/")) {
+  if (!isGitHubUrl(bugs?.url)) {
     issues.push("package.json must declare the canonical GitHub issue URL");
   }
   const keywords = Array.isArray(packageManifest.keywords)

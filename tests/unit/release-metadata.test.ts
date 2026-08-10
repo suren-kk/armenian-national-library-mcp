@@ -106,6 +106,50 @@ describe("release metadata", () => {
     );
   });
 
+  it("rejects project URLs whose host only looks like github.com", () => {
+    const input = validInput();
+    for (const host of ["evil.example/github.com", "github.com.evil.example"]) {
+      expect(
+        releaseMetadataIssues({
+          ...input,
+          packageManifest: {
+            ...input.packageManifest,
+            repository: { type: "git", url: `git+https://${host}/a/b.git` },
+            homepage: `https://${host}/a/b#readme`,
+            bugs: { url: `https://${host}/a/b/issues` },
+          },
+        }),
+      ).toEqual(
+        expect.arrayContaining([
+          "package.json must declare the canonical GitHub repository",
+          "package.json must declare the canonical GitHub homepage",
+          "package.json must declare the canonical GitHub issue URL",
+        ]),
+      );
+    }
+  });
+
+  it("rejects project URLs that are unparseable or carry no path", () => {
+    const input = validInput();
+    expect(
+      releaseMetadataIssues({
+        ...input,
+        packageManifest: {
+          ...input.packageManifest,
+          repository: { type: "git", url: "github.com/a/b" },
+          homepage: "https://github.com/",
+          bugs: { url: "not a url" },
+        },
+      }),
+    ).toEqual(
+      expect.arrayContaining([
+        "package.json must declare the canonical GitHub repository",
+        "package.json must declare the canonical GitHub homepage",
+        "package.json must declare the canonical GitHub issue URL",
+      ]),
+    );
+  });
+
   it("accepts a publication-ready personal scope and canonical metadata", () => {
     const input = validInput();
     expect(
