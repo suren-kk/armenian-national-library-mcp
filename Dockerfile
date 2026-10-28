@@ -10,7 +10,7 @@ COPY config ./config
 COPY src ./src
 RUN npm run build && npm prune --omit=dev --ignore-scripts
 
-FROM gcr.io/distroless/nodejs24-debian13:nonroot@sha256:fbbdda866ea71aef98c4abece17e3d61fbf820cc2ef3961522caa2478716171a AS runtime
+FROM gcr.io/distroless/nodejs24-debian13:nonroot@sha256:cb606325b7ec4af55462cb0b424a53b452a5b4a894ffe841fcf1048d216fb9f8 AS runtime
 
 ARG VERSION=dev
 ARG REVISION=unknown
