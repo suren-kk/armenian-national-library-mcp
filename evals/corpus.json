@@ -140,7 +140,10 @@
       "expectation": {
         "firstTool": "list_item_files",
         "requiredTools": ["list_item_files", "get_bitstream"],
-        "alternativeRequiredTools": [["list_item_files", "get_file_download"]],
+        "alternativeRequiredTools": [
+          ["list_item_files", "get_file_download"],
+          ["list_item_files"]
+        ],
         "forbiddenTools": ["nla_api_get"],
         "requiresGrounding": true,
         "requiresCitation": true
@@ -197,7 +200,8 @@
         "firstTool": "get_item",
         "requiredTools": ["get_item", "list_item_files", "get_bitstream"],
         "alternativeRequiredTools": [
-          ["get_item", "list_item_files", "get_file_download"]
+          ["get_item", "list_item_files", "get_file_download"],
+          ["get_item", "list_item_files"]
         ],
         "forbiddenTools": ["nla_api_get"],
         "requiresGrounding": true,

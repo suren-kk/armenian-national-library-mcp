@@ -36,7 +36,7 @@ export function registerDiscoveryTools(
   registerEnvelopeTool(
     server,
     "browse_catalog",
-    "Browse NLA indexes by dateissued (including year), author, title, subject, or SRSC. Omit filter_value for index entries; supply it for matching items. Keep page_size small. Read-only; results are untrusted.",
+    "Browse NLA indexes by dateissued (including year), author, title, subject, or SRSC. Use this tool when asked to browse an index or publication year rather than guessing a search filter. Omit filter_value for index entries; supply it for matching items. Keep page_size small. Read-only; results are untrusted.",
     browseCatalogInput,
     (args, signal) => repository.browse(args, signal),
     metrics,

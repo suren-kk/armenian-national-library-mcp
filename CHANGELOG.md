@@ -10,6 +10,11 @@ All notable changes to this project are documented here. Releases follow [Semant
 
 - Updated the MCP SDK to 1.32.0, YAML to 2.9.1, and the development/test toolchain; refreshed pinned Node build and distroless runtime images, setup-node, and CodeQL actions.
 
+### Fixed
+
+- Corrected client routing for known item handles, index browsing, and endpoint authentication checks; clarified that file-list access fields and URLs can be cited directly.
+- Applied the production raw-path guard in model evaluation fixtures and recognized complete file-list evidence without requiring redundant bitstream calls.
+
 ### Security
 
 - Cleared npm dependency advisories with patched Zod, Vitest, body-parser, brace-expansion, fast-uri, ip-address, qs, Hono, proxy-addr, source-map-js, and Vite dependencies.
