@@ -91,20 +91,20 @@
     "release:artifacts:built": "node dist/scripts/build-release-artifacts.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
-    "yaml": "2.9.0",
-    "zod": "4.4.3"
+    "@modelcontextprotocol/sdk": "1.32.0",
+    "yaml": "2.9.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@types/node": "26.1.2",
-    "@vitest/coverage-v8": "^4.1.10",
-    "eslint": "10.8.0",
-    "prettier": "3.9.6",
-    "tsx": "4.23.10",
+    "@types/node": "26.6.1",
+    "@vitest/coverage-v8": "4.1.12",
+    "eslint": "10.10.0",
+    "prettier": "3.9.8",
+    "tsx": "4.23.13",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.66.0",
-    "vitest": "4.1.10"
+    "typescript-eslint": "8.70.0",
+    "vitest": "4.1.12"
   },
   "overrides": {
     "@hono/node-server": "^2.0.12"
