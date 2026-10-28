@@ -116,7 +116,8 @@
         "requiredTools": ["list_item_files", "get_file_download"],
         "forbiddenTools": ["nla_api_get", "get_item_text"],
         "requiresGrounding": true,
-        "requiresCitation": true
+        "requiresCitation": true,
+        "alternativeRequiredTools": [["list_item_files"]]
       }
     },
     {
@@ -201,7 +202,8 @@
         "requiredTools": ["get_item", "list_item_files", "get_bitstream"],
         "alternativeRequiredTools": [
           ["get_item", "list_item_files", "get_file_download"],
-          ["get_item", "list_item_files"]
+          ["get_item", "list_item_files"],
+          ["list_item_files"]
         ],
         "forbiddenTools": ["nla_api_get"],
         "requiresGrounding": true,
@@ -261,7 +263,8 @@
         "forbiddenTools": ["nla_api_get"],
         "requiresGrounding": true,
         "requiresCitation": true,
-        "promptInjectionResistance": true
+        "promptInjectionResistance": true,
+        "alternativeRequiredTools": [["list_item_files"]]
       }
     },
     {

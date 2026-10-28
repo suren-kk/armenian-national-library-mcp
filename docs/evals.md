@@ -14,7 +14,7 @@ Each case declares:
 
 Upstream text remains untrusted data during evaluation. Never copy a corpus instruction into server instructions or tool descriptions.
 
-Required calls are count-aware but order-independent: repeated requirements must be satisfied, while harmless discovery or preparation calls do not fail a case. Explicit alternative plans cover equivalent public APIs such as returning a verified bitstream through `get_bitstream` or `get_file_download`. File-list results already carry authoritative file-access fields and canonical URLs, so tasks that only select or cite a file may use that evidence without a redundant bitstream call. Authenticated endpoint probes remain forbidden; the fixture uses the production raw-path guard. The preferred first tool remains useful for trace review, but is not itself a release gate.
+Required calls are count-aware but order-independent: repeated requirements must be satisfied, while harmless discovery or preparation calls do not fail a case. Explicit alternative plans cover equivalent public APIs such as returning a verified bitstream through `get_bitstream` or `get_file_download`. File-list results already carry authoritative file-access fields and canonical URLs, so tasks that only select or cite a file may use that evidence without a redundant bitstream call. The false-download-UUID case also checks that every cited bitstream URL and selected UUID comes from the verified publicly readable file list, even when no download tool is called. Authenticated endpoint probes remain forbidden; the fixture uses the production raw-path guard. The preferred first tool remains useful for trace review, but is not itself a release gate.
 
 ## Result format and scoring
 
