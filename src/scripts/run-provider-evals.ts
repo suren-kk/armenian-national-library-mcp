@@ -2,6 +2,7 @@ import { spawn, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve, sep } from "node:path";
 import { z, type ZodType } from "zod";
+import { restrictedResponseObserved } from "../evals/access-evidence.js";
 import { verifiedDownloadSelection } from "../evals/file-evidence.js";
 import { loadEvalCorpus } from "../evals/corpus.js";
 import {
@@ -449,13 +450,10 @@ function restrictedHandlingObserved(
   testCase: EvalCase,
   trace: ParsedTrace,
 ): boolean {
-  return (
-    !trace.toolCalls.some((tool) =>
-      testCase.expectation.forbiddenTools.includes(tool),
-    ) &&
-    /(?:restrict|not public|authentication|required|unavailable|огранич|аутентификац|недоступ|սահմանափակ|նույնականաց|հասանելի չէ)/i.test(
-      trace.finalText,
-    )
+  return restrictedResponseObserved(
+    testCase.expectation.forbiddenTools,
+    trace.toolCalls,
+    trace.finalText,
   );
 }
 
