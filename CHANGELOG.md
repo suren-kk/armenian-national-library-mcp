@@ -4,6 +4,17 @@ All notable changes to this project are documented here. Releases follow [Semant
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-10-28
+
+### Changed
+
+- Updated the MCP SDK to 1.32.0, YAML to 2.9.1, and the development/test toolchain; refreshed pinned Node build and distroless runtime images, setup-node, and CodeQL actions.
+
+### Security
+
+- Cleared npm dependency advisories with patched Zod, Vitest, body-parser, brace-expansion, fast-uri, ip-address, qs, Hono, proxy-addr, source-map-js, and Vite dependencies.
+- Refreshed the pinned distroless Node 24 runtime to resolve the OpenSSL advisories CVE-2026-14456 and CVE-2026-84782.
+
 ## [1.0.2] - 2026-08-10
 
 ### Changed
