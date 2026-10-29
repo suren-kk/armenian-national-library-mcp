@@ -132,4 +132,23 @@ describe("provider-neutral eval scoring", () => {
 
     expect(scoreProviderRun(corpus, run).coreToolSelection.rate).toBe(1);
   });
+
+  it("accepts complete file-list evidence without permitting forbidden raw calls", () => {
+    const run = passingRun(corpus, "openai");
+    const multiple = run.cases.find(
+      (entry) => entry.caseId === "ru-multiple-files",
+    )!;
+    const citation = run.cases.find(
+      (entry) => entry.caseId === "en-cite-record-bitstream",
+    )!;
+    multiple.toolCalls = ["list_item_files"];
+    citation.toolCalls = ["get_item", "list_item_files"];
+    expect(scoreProviderRun(corpus, run).releasePassed).toBe(true);
+
+    const authentication = run.cases.find(
+      (entry) => entry.caseId === "ru-auth-required-endpoint",
+    )!;
+    authentication.toolCalls = ["nla_api_get", "get_api_capabilities"];
+    expect(scoreProviderRun(corpus, run).releasePassed).toBe(false);
+  });
 });

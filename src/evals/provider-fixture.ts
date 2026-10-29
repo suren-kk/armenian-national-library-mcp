@@ -1,3 +1,5 @@
+import { assertRawApiPath } from "../security/raw-api-policy.js";
+import type { RawApiOptions } from "../nla/raw-api-service.js";
 import { NlaError } from "../nla/errors.js";
 import type { NlaRepository, SearchOptions } from "../nla/repository.js";
 import type {
@@ -480,6 +482,14 @@ export function createProviderEvalRepository(caseId: string): NlaRepository {
           ),
         );
       }
+      if (selectedItem.normalized.uuid === restrictedItem.normalized.uuid) {
+        return Promise.reject(
+          new NlaError(
+            "NLA_ACCESS_RESTRICTED",
+            "The selected fixture item is restricted",
+          ),
+        );
+      }
       const fullText = textForCase(caseId);
       const offset = options.offsetChars;
       const chunk = fullText.slice(offset, offset + options.maxChars);
@@ -600,15 +610,30 @@ export function createProviderEvalRepository(caseId: string): NlaRepository {
             }
           : {}),
       }),
-    rawApiGet: () =>
-      Promise.resolve(
-        envelope({
-          method: "GET" as const,
-          path: "/core/sites",
+    rawApiGet: (options: RawApiOptions) =>
+      Promise.resolve().then(() => {
+        // Exercise the production path guard rather than returning success for
+        // authenticated, arbitrary-host or traversal requests in model evals.
+        assertRawApiPath(options.path, [
+          {
+            relation: "sites",
+            path: "/core/sites",
+            methods: ["GET", "HEAD"],
+            access: "public",
+            risk: "read",
+            semanticTool: null,
+            liveTest: true,
+            rawAllowed: true,
+            templated: false,
+          },
+        ]);
+        return envelope({
+          method: options.method,
+          path: options.path,
           status: 200,
           contentType: "application/json",
-          body: {},
-        }),
-      ),
+          body: options.method === "HEAD" ? null : {},
+        });
+      }),
   } as unknown as NlaRepository;
 }

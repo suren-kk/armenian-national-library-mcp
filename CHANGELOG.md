@@ -4,14 +4,20 @@ All notable changes to this project are documented here. Releases follow [Semant
 
 ## [Unreleased]
 
-## [1.0.3] - 2026-10-28
+## [1.0.3] - 2026-10-29
 
 ### Changed
 
 - Updated the MCP SDK to 1.32.0, YAML to 2.9.1, and the development/test toolchain; refreshed pinned Node build and distroless runtime images, setup-node, and CodeQL actions.
 
+### Fixed
+
+- Corrected client routing for known item handles, index browsing, and endpoint authentication checks; clarified that file-list access fields and URLs can be cited directly.
+- Applied the production raw-path guard in model evaluation fixtures and recognized complete file-list evidence without requiring redundant bitstream calls.
+
 ### Security
 
+- Updated `@hono/node-server` to 2.1.5 to fix a static-path middleware bypass.
 - Cleared npm dependency advisories with patched Zod, Vitest, body-parser, brace-expansion, fast-uri, ip-address, qs, Hono, proxy-addr, source-map-js, and Vite dependencies.
 - Refreshed the pinned distroless Node 24 runtime to resolve the OpenSSL advisories CVE-2026-14456 and CVE-2026-84782.
 
