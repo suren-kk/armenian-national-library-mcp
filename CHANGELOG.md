@@ -4,7 +4,7 @@ All notable changes to this project are documented here. Releases follow [Semant
 
 ## [Unreleased]
 
-## [1.0.3] - 2026-10-28
+## [1.0.3] - 2026-10-29
 
 ### Changed
 
@@ -17,6 +17,7 @@ All notable changes to this project are documented here. Releases follow [Semant
 
 ### Security
 
+- Updated `@hono/node-server` to 2.1.5 to fix a static-path middleware bypass.
 - Cleared npm dependency advisories with patched Zod, Vitest, body-parser, brace-expansion, fast-uri, ip-address, qs, Hono, proxy-addr, source-map-js, and Vite dependencies.
 - Refreshed the pinned distroless Node 24 runtime to resolve the OpenSSL advisories CVE-2026-14456 and CVE-2026-84782.
 
