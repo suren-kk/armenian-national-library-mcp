@@ -97,13 +97,13 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@types/node": "26.6.1",
+    "@types/node": "26.6.6",
     "@vitest/coverage-v8": "4.1.12",
-    "eslint": "10.10.0",
-    "prettier": "3.9.8",
-    "tsx": "4.23.13",
+    "eslint": "10.13.0",
+    "prettier": "3.9.10",
+    "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.70.0",
+    "typescript-eslint": "8.72.1",
     "vitest": "4.1.12"
   },
   "overrides": {
